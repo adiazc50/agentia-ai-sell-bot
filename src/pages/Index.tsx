@@ -1,12 +1,22 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import HeroSection from "@/components/HeroSection";
+import UseCasesSection from "@/components/UseCasesSection";
+import TechSection from "@/components/TechSection";
+import CtaSection from "@/components/CtaSection";
+import Footer from "@/components/Footer";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      {/* WhatsApp floating button */}
+      <WhatsAppButton />
+      
+      {/* Main content sections */}
+      <HeroSection />
+      <UseCasesSection />
+      <TechSection />
+      <CtaSection />
+      <Footer />
     </div>
   );
 };
