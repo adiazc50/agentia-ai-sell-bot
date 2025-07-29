@@ -30,7 +30,7 @@ const Navbar = () => {
         </NavigationMenu>
 
         <Button 
-          onClick={() => window.open('https://wa.me/573108536630?text=Hola,%20quiero%20más%20información%20sobre%20los%20agentes%20de%20IA%20para%20mi%20empresa', '_blank')}
+          onClick={() => window.open('https://wa.me/573009006005?text=Hola,%20quiero%20más%20información%20sobre%20los%20agentes%20de%20IA%20para%20mi%20empresa', '_blank')}
           className="bg-green-600 hover:bg-green-700 text-white"
         >
           Contactar
