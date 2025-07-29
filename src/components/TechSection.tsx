@@ -16,16 +16,28 @@ const TechSection = () => {
   const technologies = [
     { name: "GPT", category: "IA" },
     { name: "AWS", category: "Cloud" },
+    { name: "Azure", category: "Cloud" },
+    { name: "Oracle Cloud", category: "Cloud" },
+    { name: "Google Cloud", category: "Cloud" },
     { name: "Docker", category: "DevOps" },
+    { name: "Kubernetes", category: "DevOps" },
     { name: "Twilio", category: "Comunicaciones" },
     { name: "OpenAI", category: "IA" },
+    { name: "Copilot", category: "IA" },
     { name: "TensorFlow", category: "ML" },
     { name: "Python", category: "Backend" },
     { name: "React", category: "Frontend" },
     { name: "Node.js", category: "Backend" },
+    { name: "Microsoft", category: "Enterprise" },
+    { name: "Power BI", category: "Analytics" },
+    { name: "Business Intelligence", category: "Analytics" },
+    { name: "Robótica", category: "Robotics" },
     { name: "WhatsApp API", category: "Messaging" },
     { name: "Meta API", category: "Social" },
-    { name: "Google Cloud", category: "Cloud" }
+    { name: "MongoDB", category: "Database" },
+    { name: "PostgreSQL", category: "Database" },
+    { name: "Redis", category: "Cache" },
+    { name: "Elasticsearch", category: "Search" }
   ];
 
   const capabilities = [
