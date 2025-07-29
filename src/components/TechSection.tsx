@@ -79,7 +79,7 @@ const TechSection = () => {
     {
       icon: Zap,
       title: "Implementación Rápida",
-      description: "Despliegue en 48 horas con configuración personalizada para tu negocio"
+      description: "Despliegue con configuración personalizada para tu negocio"
     }
   ];
 
