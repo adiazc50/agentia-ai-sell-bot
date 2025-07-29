@@ -101,7 +101,7 @@ const TechSection = () => {
           <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
             Tecnología de{" "}
             <span className="bg-gradient-primary bg-clip-text text-transparent">
-              vanguardia
+              AVANZADA
             </span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
