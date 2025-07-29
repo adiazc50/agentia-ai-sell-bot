@@ -13,6 +13,13 @@ import {
 const UseCasesSection = () => {
   const useCases = [
     {
+      icon: Bot,
+      title: "Consultoría tecnológica IA",
+      description: "Análisis y recomendaciones automatizadas para optimizar procesos empresariales con inteligencia artificial.",
+      features: ["Análisis automático", "Recomendaciones IA", "Optimización continua"],
+      isHighlighted: true
+    },
+    {
       icon: Phone,
       title: "Ventas automáticas por voz",
       description: "Agentes que realizan hasta 10,000 llamadas en un minuto para contactar clientes y cerrar ventas automáticamente.",
@@ -53,12 +60,6 @@ const UseCasesSection = () => {
       title: "Generación de leads",
       description: "IA conversacional que identifica, califica y nutre leads potenciales en múltiples canales digitales.",
       features: ["Identificación automática", "Calificación inteligente", "Nutrición de leads"]
-    },
-    {
-      icon: Bot,
-      title: "Consultoría tecnológica IA",
-      description: "Análisis y recomendaciones automatizadas para optimizar procesos empresariales con inteligencia artificial.",
-      features: ["Análisis automático", "Recomendaciones IA", "Optimización continua"]
     }
   ];
 
@@ -80,14 +81,23 @@ const UseCasesSection = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {useCases.map((useCase, index) => {
             const IconComponent = useCase.icon;
+            const isHighlighted = useCase.isHighlighted;
             return (
               <Card 
                 key={index} 
-                className="group hover:shadow-glow-accent transition-all duration-300 hover:scale-105 bg-card/80 backdrop-blur-sm border-border/50"
+                className={`group transition-all duration-300 hover:scale-105 backdrop-blur-sm ${
+                  isHighlighted 
+                    ? 'bg-gradient-to-br from-accent/20 to-primary/10 border-accent/40 shadow-glow-accent hover:shadow-glow-primary' 
+                    : 'bg-card/80 border-border/50 hover:shadow-glow-accent'
+                }`}
               >
                 <CardHeader className="pb-4">
-                  <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center mb-4 group-hover:shadow-glow-primary transition-all duration-300">
-                    <IconComponent size={24} className="text-primary-foreground" />
+                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-all duration-300 ${
+                    isHighlighted 
+                      ? 'bg-gradient-to-br from-accent to-primary shadow-glow-accent group-hover:shadow-glow-primary' 
+                      : 'bg-gradient-primary group-hover:shadow-glow-primary'
+                  }`}>
+                    <IconComponent size={24} className={isHighlighted ? 'text-background' : 'text-primary-foreground'} />
                   </div>
                   <CardTitle className="text-foreground text-lg leading-tight">
                     {useCase.title}
