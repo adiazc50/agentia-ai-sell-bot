@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { 
   Phone, 
   MessageSquare, 
@@ -98,7 +99,7 @@ const UseCasesSection = () => {
                   <p className="text-muted-foreground text-sm mb-4 leading-relaxed">
                     {useCase.description}
                   </p>
-                  <div className="space-y-2">
+                  <div className="space-y-2 mb-4">
                     {useCase.features.map((feature, featureIndex) => (
                       <div key={featureIndex} className="flex items-center gap-2 text-xs">
                         <div className="w-1 h-1 bg-accent rounded-full" />
@@ -106,6 +107,12 @@ const UseCasesSection = () => {
                       </div>
                     ))}
                   </div>
+                  <Button 
+                    className="w-full bg-gradient-primary hover:shadow-glow-primary transition-all duration-300"
+                    onClick={() => window.open('https://wa.me/573009006005?text=Hola,%20quiero%20cotizar%20el%20servicio%20de%20' + encodeURIComponent(useCase.title), '_blank')}
+                  >
+                    Cotiza ahora
+                  </Button>
                 </CardContent>
               </Card>
             );
