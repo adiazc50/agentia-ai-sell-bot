@@ -3,7 +3,7 @@ import { ArrowRight, MessageCircle, Clock, TrendingUp, Users } from "lucide-reac
 
 const CtaSection = () => {
   return (
-    <section className="py-20 bg-gradient-to-br from-card to-background relative overflow-hidden">
+    <section id="contacto" className="py-20 bg-gradient-to-br from-card to-background relative overflow-hidden" itemScope itemType="https://schema.org/ContactPage">
       {/* Animated background elements */}
       <div className="absolute inset-0 opacity-20">
         <div className="absolute top-10 left-10 w-32 h-32 border border-primary/20 rounded-full animate-pulse" />
@@ -15,6 +15,7 @@ const CtaSection = () => {
         <div className="max-w-4xl mx-auto text-center">
           {/* Main CTA */}
           <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-6 leading-tight">
+            <span className="sr-only">Contacta SoyAgentia Medellín - </span>
             ¿Estás listo para tener un{" "}
             <span className="bg-gradient-primary bg-clip-text text-transparent">
               robot vendiendo
@@ -23,7 +24,7 @@ const CtaSection = () => {
           </h2>
           
           <p className="text-xl text-muted-foreground mb-12 max-w-3xl mx-auto">
-            No esperes más. Transforma tu empresa hoy mismo con agentes de IA que trabajan 24/7 
+            No esperes más. <strong>Transforma tu empresa en Medellín</strong> hoy mismo con <em>agentes de IA que trabajan 24/7</em> 
             para hacer crecer tu negocio mientras tú te enfocas en lo que realmente importa.
           </p>
           

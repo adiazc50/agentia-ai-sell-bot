@@ -24,8 +24,9 @@ const HeroSection = () => {
             <span className="text-foreground">Tecnología 100% desarrollada en Medellín</span>
           </div>
           
-          {/* Main heading */}
+          {/* Main heading with enhanced SEO keywords */}
           <h1 className="text-5xl md:text-7xl font-bold text-foreground leading-tight">
+            <span className="sr-only">SoyAgentia Medellín - </span>
             Transforma tu empresa con{" "}
             <span className="bg-gradient-primary bg-clip-text text-transparent">
               Agentes de IA
@@ -33,11 +34,11 @@ const HeroSection = () => {
             hechos a medida
           </h1>
           
-          {/* Subtitle */}
+          {/* Subtitle with SEO keywords */}
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            Automatiza ventas, marketing, soporte y mucho más. 
+            <strong>Automatiza ventas, marketing, soporte</strong> y mucho más en Medellín. 
             <br className="hidden md:block" />
-            Bienvenido a la era de los robots inteligentes para negocios.
+            Bienvenido a la era de los <em>robots inteligentes para negocios</em> desarrollados en Colombia.
           </p>
           
           {/* Key benefits */}

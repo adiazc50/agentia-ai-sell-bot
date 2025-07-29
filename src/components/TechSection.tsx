@@ -84,12 +84,12 @@ const TechSection = () => {
   ];
 
   return (
-    <section className="py-20 relative overflow-hidden">
+    <section id="tecnologia" className="py-20 relative overflow-hidden" itemScope itemType="https://schema.org/TechArticle">
       {/* Background */}
       <div className="absolute inset-0 z-0">
         <img 
           src={techBackground} 
-          alt="Technology Background" 
+          alt="Tecnología de IA avanzada desarrollada en Medellín para empresas colombianas" 
           className="w-full h-full object-cover opacity-10"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-background/95 to-card/90" />
@@ -98,14 +98,15 @@ const TechSection = () => {
       <div className="container mx-auto px-6 relative z-10">
         {/* Header */}
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6" itemProp="headline">
+            <span className="sr-only">Desarrollo IA Medellín - </span>
             Tecnología de{" "}
             <span className="bg-gradient-primary bg-clip-text text-transparent">
               AVANZADA
             </span>
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-            Más que una agencia, somos una empresa de base tecnológica con desarrollo propio en IA y robótica
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8" itemProp="description">
+            Más que una agencia, somos una <strong>empresa de base tecnológica en Medellín</strong> con desarrollo propio en <em>IA y robótica empresarial</em>
           </p>
           
           {/* Technology badges */}

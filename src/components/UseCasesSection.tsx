@@ -63,17 +63,18 @@ const UseCasesSection = () => {
   ];
 
   return (
-    <section id="casos-uso" className="py-20 bg-card/30">
+    <section id="casos-uso" className="py-20 bg-card/30" itemScope itemType="https://schema.org/Service">
       <div className="container mx-auto px-6">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6" itemProp="name">
+            <span className="sr-only">Agentes IA Medellín - </span>
             Casos de uso que{" "}
             <span className="bg-gradient-primary bg-clip-text text-transparent">
               transforman negocios
             </span>
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Nuestros agentes de IA se adaptan a cualquier industria y proceso empresarial
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto" itemProp="description">
+            Nuestros <strong>agentes de IA en Medellín</strong> se adaptan a cualquier industria y proceso empresarial en Colombia
           </p>
         </div>
         
