@@ -56,8 +56,27 @@ Crawl-delay: 2
 # Sitemap location
 Sitemap: https://soyagentia.com/sitemap.xml
 
-# Additional important pages for SEO
+# Páginas principales optimizadas para SEO
 # /
 # /#casos-uso
 # /#tecnologia  
 # /#contacto
+# /automatizacion-ventas-ia
+# /llamadas-inteligencia-artificial
+# /recuperacion-cartera-ia
+
+# Ciudades principales Colombia
+# /agentes-ia-bogota
+# /agentes-ia-medellin
+# /agentes-ia-cali
+# /agentes-ia-barranquilla
+# /agentes-ia-cartagena
+
+# Ciudades principales Panamá  
+# /agentes-ia-panama
+# /agentes-ia-san-miguelito
+
+# Landing pages servicios por ciudad
+# /automatizacion-ventas-bogota
+# /llamadas-ia-medellin
+# /recuperacion-cartera-cali
