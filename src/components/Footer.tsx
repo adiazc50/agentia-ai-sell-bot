@@ -2,29 +2,30 @@ import { MapPin, Phone, Instagram, Mail } from "lucide-react";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
-  
+
   return (
     <footer className="bg-card border-t border-border/50 py-12">
       <div className="container mx-auto px-6">
+        {/* 3 columnas: Empresa / Contacto / Social+Servicios */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          {/* Company info */}
+          {/* Empresa */}
           <div className="space-y-4">
             <h3 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
               SoyAgentia
             </h3>
             <p className="text-muted-foreground leading-relaxed">
-              Empresa de base tecnológica especializada en Agentes de Inteligencia Artificial 
+              Empresa de base tecnológica especializada en Agentes de Inteligencia Artificial
               y robótica empresarial a medida.
             </p>
             <div className="space-y-2">
-              <p className="text-sm text-foreground font-medium">Agentia SAS</p>
+              <p className="text-sm text-foreground font-medium">Agent IA SAS</p>
               <p className="text-xs text-muted-foreground">
                 Registro mercantil y documentos legales disponibles
               </p>
             </div>
           </div>
-          
-          {/* Contact info */}
+
+          {/* Contacto */}
           <div className="space-y-4">
             <h4 className="text-lg font-semibold text-foreground">Contacto</h4>
             <div className="space-y-3">
@@ -32,16 +33,16 @@ const Footer = () => {
                 <MapPin size={18} className="text-accent" />
                 <span>Medellín, Colombia</span>
               </div>
-              <a 
-                href="tel:+573009006005" 
+              <a
+                href="tel:+573009006005"
                 className="flex items-center gap-3 text-muted-foreground hover:text-accent transition-colors"
               >
                 <Phone size={18} className="text-accent" />
                 <span>+57 300 900 6005</span>
               </a>
-              <a 
-                href="https://wa.me/573009006005" 
-                target="_blank" 
+              <a
+                href="https://wa.me/573009006005"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 text-muted-foreground hover:text-accent transition-colors"
               >
@@ -52,30 +53,29 @@ const Footer = () => {
               </a>
             </div>
           </div>
-          
-          {/* Social links */}
+
+          {/* Social + Servicios */}
           <div className="space-y-4">
             <h4 className="text-lg font-semibold text-foreground">Síguenos</h4>
             <div className="space-y-3">
-              <a 
-                href="https://instagram.com/soyagentia" 
-                target="_blank" 
+              <a
+                href="https://instagram.com/aledicano"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 text-muted-foreground hover:text-accent transition-colors"
               >
                 <Instagram size={18} className="text-accent" />
-                <span>@soyagentia</span>
+                <span>@aledicano</span>
               </a>
-              <a 
-                href="mailto:contacto@soyagentia.com" 
+              <a
+                href="mailto:contacto@soyagentia.com"
                 className="flex items-center gap-3 text-muted-foreground hover:text-accent transition-colors"
               >
                 <Mail size={18} className="text-accent" />
                 <span>contacto@soyagentia.com</span>
               </a>
             </div>
-            
-            {/* Quick links */}
+
             <div className="pt-4">
               <h5 className="text-sm font-medium text-foreground mb-2">Servicios</h5>
               <div className="space-y-1 text-sm text-muted-foreground">
@@ -87,11 +87,11 @@ const Footer = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Bottom bar */}
         <div className="border-t border-border/50 pt-8 text-center">
           <p className="text-muted-foreground text-sm">
-            © {currentYear} Agentia SAS - SoyAgentia. Todos los derechos reservados.
+            © {currentYear} Agent IA SAS - SoyAgentia. Todos los derechos reservados.
           </p>
           <p className="text-xs text-muted-foreground mt-2">
             Desarrollado con tecnología propia en Medellín, Colombia 🇨🇴
