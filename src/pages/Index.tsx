@@ -13,6 +13,7 @@ const CtaSection      = lazy(() => import("@/components/CtaSection"));
 const Index: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
+      {/* Skip link accesible */}
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:bg-accent focus:text-accent-foreground focus:px-3 focus:py-2 focus:rounded-md"
@@ -35,25 +36,35 @@ const Index: React.FC = () => {
             </section>
           }
         >
+          {/* Casos de uso */}
           <section className="scroll-mt-20 md:scroll-mt-24">
             <UseCasesSection />
           </section>
 
+          {/* Tecnología */}
           <section>
             <TechSection />
           </section>
 
-          {/* CTA (termina con el texto “Únete a las empresas…”) */}
+          {/* CTA (termina con “Únete a las empresas…”) */}
           <section className="scroll-mt-20 md:scroll-mt-24">
             <CtaSection />
           </section>
 
-          {/* ⬇️ Justo después del texto del CTA */}
-          {/* SEO por ciudad (card colapsable) */}
-          <div id="city-seo-anchor" className="container mx-auto px-6 mt-12" />
+          {/* === SEO por ciudad (card colapsable se inyecta aquí) + Grid de ciudades === */}
+          <section
+            aria-labelledby="ciudades-title"
+            role="region"
+            className="container mx-auto px-6 my-12"
+            id="city-seo-anchor" // <- el script inyecta el card aquí
+          >
+            <h2 id="ciudades-title" className="text-xl font-semibold mb-3">
+              Agentes de IA por ciudad
+            </h2>
 
-          <CityLinks />
-
+            {/* Pills / enlaces a las 31 ciudades */}
+            <CityLinks />
+          </section>
         </Suspense>
 
         <Footer />

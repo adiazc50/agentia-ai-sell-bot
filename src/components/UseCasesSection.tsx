@@ -1,4 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// src/components/UseCasesSection.tsx
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Phone,
@@ -121,14 +122,20 @@ const UseCasesSection = () => {
 
   return (
     <section
-      id="casos-de-uso" // <- coincide con tu navbar
+      id="casos-de-uso" // 👈 coincide con tu Navbar
+      role="region"
+      aria-labelledby="casos-de-uso-title"
       className="py-20 bg-card/30"
       itemScope
       itemType="https://schema.org/Service"
     >
       <div className="container mx-auto px-6">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6" itemProp="name">
+          <h2
+            id="casos-de-uso-title"
+            className="text-4xl md:text-5xl font-bold text-foreground mb-6"
+            itemProp="name"
+          >
             <span className="sr-only">Agentes IA {cityText} - </span>
             Casos de uso que{" "}
             <span className="bg-gradient-primary bg-clip-text text-transparent">
@@ -144,34 +151,48 @@ const UseCasesSection = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {useCases.map((useCase, index) => {
             const IconComponent = useCase.icon;
+            const titleId = `usecase-title-${index}`;
             return (
               <Card
                 key={index}
                 className="group transition-all duration-300 hover:scale-105 backdrop-blur-sm bg-gradient-to-br from-accent/20 to-primary/10 border-accent/40 shadow-glow-accent hover:shadow-glow-primary"
+                role="article"
+                aria-labelledby={titleId}
                 itemScope
                 itemType="https://schema.org/Service"
+                data-city={cityText}
               >
                 <CardHeader className="pb-4">
                   <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-all duration-300 bg-gradient-to-br from-accent to-primary shadow-glow-accent group-hover:shadow-glow-primary">
-                    <IconComponent size={24} className="text-background" />
+                    <IconComponent size={24} className="text-background" aria-hidden="true" />
                   </div>
-                  <CardTitle className="text-foreground text-lg leading-tight" itemProp="name">
+                  {/* h3 real para SEO semántico */}
+                  <h3 id={titleId} className="text-foreground text-lg leading-tight" itemProp="name">
                     {useCase.title}
-                  </CardTitle>
+                  </h3>
+                  {/* microdatos mínimos del Service */}
+                  <meta itemProp="serviceType" content={useCase.title} />
+                  <meta itemProp="areaServed" content={cityText} />
+                  <link itemProp="url" href="https://soyagentia.com/" />
                 </CardHeader>
+
                 <CardContent className="pt-0">
                   <p className="text-muted-foreground text-sm mb-4 leading-relaxed" itemProp="description">
                     {useCase.description}
                   </p>
-                  <div className="space-y-2 mb-4">
+
+                  {/* lista semántica de features */}
+                  <ul className="space-y-2 mb-4">
                     {useCase.features.map((feature, featureIndex) => (
-                      <div key={featureIndex} className="flex items-center gap-2 text-xs">
-                        <div className="w-1 h-1 bg-accent rounded-full" />
+                      <li key={featureIndex} className="flex items-center gap-2 text-xs">
+                        <span className="w-1 h-1 bg-accent rounded-full" aria-hidden="true" />
                         <span className="text-accent">{feature}</span>
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
+
                   <Button
+                    aria-label={`Cotizar ${useCase.title} en ${cityText}`}
                     className="w-full bg-gradient-primary hover:shadow-glow-primary transition-all duration-300"
                     onClick={() =>
                       window.open(

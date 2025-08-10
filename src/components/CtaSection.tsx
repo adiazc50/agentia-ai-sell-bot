@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, MessageCircle, Clock, TrendingUp, Users } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
-// Mapa de slugs -> etiqueta bonita
+// Slug -> etiqueta
 const CITY_LABEL: Record<string, string> = {
   medellin: "Medellín",
   bogota: "Bogotá",
@@ -37,11 +37,11 @@ const CITY_LABEL: Record<string, string> = {
   "ciudad-de-panama": "Ciudad de Panamá",
 };
 
-// Lee la ciudad desde la ruta /ciudades/:slug/
+// Lee ciudad de /ciudades/:slug/
 function useCityFromPath() {
   const { pathname } = useLocation();
   const match = pathname.match(/^\/ciudades\/([^/]+)\/?$/);
-  if (!match) return null; // Home u otras rutas => sin ciudad
+  if (!match) return null;
   const slug = decodeURIComponent(match[1]);
   return CITY_LABEL[slug] ?? slug.replace(/-/g, " ");
 }
@@ -59,6 +59,8 @@ const CtaSection = () => {
     <section
       id="contacto"
       className="py-20 bg-gradient-to-br from-card to-background relative overflow-hidden"
+      role="region"
+      aria-labelledby="cta-title"
       itemScope
       itemType="https://schema.org/ContactPage"
     >
@@ -72,21 +74,26 @@ const CtaSection = () => {
       <div className="container mx-auto px-6 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
           {/* Main CTA */}
-          <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-6 leading-tight">
+          <h2
+            id="cta-title"
+            className="text-4xl md:text-6xl font-bold text-foreground mb-6 leading-tight"
+          >
             <span className="sr-only">Contacta SoyAgentia {cityText} - </span>
             ¿Estás listo para tener un{" "}
-            <span className="bg-gradient-primary bg-clip-text text-transparent">robot vendiendo</span>{" "}
+            <span className="bg-gradient-primary bg-clip-text text-transparent">
+              robot vendiendo
+            </span>{" "}
             por ti?
           </h2>
 
           <p className="text-xl text-muted-foreground mb-12 max-w-3xl mx-auto">
-            No esperes más. <strong>Transforma tu empresa en {cityText}</strong> hoy mismo con{" "}
-            <em>agentes de IA que trabajan 24/7</em> para hacer crecer tu negocio mientras tú te
-            enfocas en lo que realmente importa.
+            No esperes más. <strong>Transforma tu empresa en {cityText}</strong>{" "}
+            hoy mismo con <em>agentes de IA que trabajan 24/7</em> para hacer
+            crecer tu negocio mientras tú te enfocas en lo que realmente importa.
           </p>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12" aria-label="Indicadores clave">
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
                 <Clock className="text-accent mr-2" size={24} />
@@ -143,7 +150,17 @@ const CtaSection = () => {
             <p className="text-muted-foreground text-sm">
               ✓ Implementación en 48 horas • ✓ Soporte técnico 24/7 • ✓ Garantía de resultados
             </p>
-            <p className="text-accent font-medium">Únete a las empresas que ya están automatizando su futuro</p>
+            <p className="text-accent font-medium">
+              Únete a las empresas que ya están automatizando su futuro
+            </p>
+          </div>
+
+          {/* Microdatos opcionales (ContactPoint) – accesibles y sin impacto visual */}
+          <div className="sr-only" itemScope itemType="https://schema.org/ContactPoint">
+            <meta itemProp="contactType" content="customer service" />
+            <meta itemProp="telephone" content="+57-300-900-6005" />
+            <meta itemProp="areaServed" content="CO" />
+            <meta itemProp="availableLanguage" content="es" />
           </div>
         </div>
       </div>

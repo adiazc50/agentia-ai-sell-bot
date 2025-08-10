@@ -97,7 +97,7 @@ function getAssetTags() {
 const LONG_CONTENT = {
   medellin: `
     <h1>Agentes de IA y automatización de ventas en Medellín</h1>
-    <p><strong>¿Buscas una empresa de agentes de IA en Medellín</strong> que realmente impulse tu adquisición y atención 24/7?
+    <p><strong>¿Buscas una empresa de agentes de IA en Medellín</strong> que impulse tu adquisición y atención 24/7?
     En SoyAgentia diseñamos e implementamos <em>agentes conversacionales</em> que prospectan, califican y venden por voz y chat,
     se integran a WhatsApp y a tu web, y se conectan con CRM/ERP para automatizar seguimiento, agendamiento y postventa.</p>
 
@@ -119,7 +119,7 @@ const LONG_CONTENT = {
 
     <h2>Integraciones y sectores</h2>
     <p>Conectamos con HubSpot, Zoho, Salesforce, Pipedrive, SAP/ERP, pasarelas de pago y telefonía.
-    En Medellín hemos visto alto impacto en <strong>inmobiliario, salud, educación, retail/ecommerce, turismo</strong> y servicios B2B.</p>
+    En Medellín impactamos <strong>inmobiliario, salud, educación, retail/ecommerce, turismo</strong> y servicios B2B.</p>
 
     <h2>Beneficios medibles</h2>
     <ul>
@@ -204,10 +204,7 @@ function makeHead(city, extraCssLinks = "") {
   const cityName = city.name;
   const canonical = `${BASE_URL}/ciudades/${city.slug}/`;
   const title = `Agentes de IA en ${cityName} | Automatización y Ventas 24/7 - ${brand}`;
-  const description = `Agentes de IA en ${cityName}: ventas 24/7, atención al cliente y automatización de procesos con integración a WhatsApp, web y CRM. Despliegue rápido y soporte continuo.`;
-
-  const hrefLang = city.locale;
-  const altLocale = city.locale === "es-CO" ? "es-PA" : "es-CO";
+  const description = `Agentes de IA en ${cityName}: ventas 24/7, atención al cliente y automatización de procesos con integración a WhatsApp, web y CRM. Despliegue ágil y soporte continuo.`;
 
   const localBusiness = {
     "@context": "https://schema.org",
@@ -231,6 +228,10 @@ function makeHead(city, extraCssLinks = "") {
     ],
   };
 
+  // hreflang: solo autorreferencia + x-default (evitamos alternates falsos)
+  const hrefLangSelf = `<link rel="alternate" hreflang="${city.locale}" href="${esc(canonical)}" />`;
+  const hrefLangDefault = `<link rel="alternate" hreflang="x-default" href="${esc(canonical)}" />`;
+
   return `
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -238,9 +239,8 @@ function makeHead(city, extraCssLinks = "") {
     <meta name="description" content="${esc(description)}" />
     <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large" />
     <link rel="canonical" href="${esc(canonical)}" />
-    <link rel="alternate" hreflang="${hrefLang}" href="${esc(canonical)}" />
-    <link rel="alternate" hreflang="${altLocale}" href="${esc(canonical)}" />
-    <link rel="alternate" hreflang="x-default" href="${esc(canonical)}" />
+    ${hrefLangSelf}
+    ${hrefLangDefault}
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
@@ -251,8 +251,7 @@ function makeHead(city, extraCssLinks = "") {
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:site_name" content="${brand}" />
-    <meta property="og:locale" content="${city.locale}" />
-    <meta property="og:locale:alternate" content="${altLocale}" />
+    <meta property="og:locale" content="${city.locale.replace('-', '_')}" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
@@ -289,8 +288,7 @@ function makeBody(city, scriptTag = "") {
         acceptedAnswer: {
           "@type": "Answer",
           text:
-            `Sí, implementamos Agentes de IA en ${cityName}. El despliegue típico es ágil (48–72 horas) ` +
-            `con integración a WhatsApp, web y CRM, pruebas y puesta en producción.`,
+            `Sí, implementamos Agentes de IA en ${cityName}. El despliegue es ágil, con integración a WhatsApp, web y CRM, pruebas y puesta en producción en pocos días.`,
         },
       },
       {
@@ -328,15 +326,21 @@ function makeBody(city, scriptTag = "") {
     .join(" • ");
 
   const longHTML = LONG_CONTENT[city.slug] || `
-    <h1>Agentes de IA en ${esc(cityName)}</h1>
+    <h2>Agentes de IA en ${esc(cityName)}</h2>
     <p>Implementamos agentes conversacionales para ventas, soporte y postventa en ${esc(cityName)} con integración a WhatsApp, web y CRM.</p>
   `;
 
   return `
   <body>
+    <!-- H1 de respaldo para analizadores que no ejecutan JS (se elimina al cargar). -->
+    <h1 id="preload-h1-city"
+        style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;">
+      Agentes de IA en ${esc(cityName)} | Automatización y Ventas 24/7
+    </h1>
+
     <div id="root"></div>
 
-    <!-- Card SEO (bonito, con variables del tema) -->
+    <!-- Card SEO (colapsable) que reubicamos justo sobre la sección “Ciudades” -->
     <section id="city-seo"
       style="
         opacity:0;height:0;overflow:hidden;
@@ -380,9 +384,15 @@ function makeBody(city, scriptTag = "") {
       </div>
     </section>
 
-    <!-- Mover el card justo encima de “Ciudades” (city-seo-anchor) -->
     <script>
       (function () {
+        // 1) Eliminar el H1 placeholder para no duplicar con el H1 del Hero de la SPA
+        document.addEventListener('DOMContentLoaded', function(){
+          var ph = document.getElementById('preload-h1-city');
+          if (ph) ph.remove();
+        });
+
+        // 2) Reubicar el card justo encima de la sección “Ciudades” (ancla #city-seo-anchor en la SPA)
         var card = document.getElementById('city-seo');
         var content = document.getElementById('city-seo-content');
         var btn = document.getElementById('city-seo-toggle');
@@ -391,7 +401,6 @@ function makeBody(city, scriptTag = "") {
           var anchor = document.getElementById('city-seo-anchor');
           if (anchor && card) {
             anchor.appendChild(card);
-            // Mostrar ya dentro del layout
             card.style.opacity = '1';
             card.style.height = 'auto';
             card.style.overflow = 'visible';
@@ -400,13 +409,11 @@ function makeBody(city, scriptTag = "") {
           return false;
         }
 
-        // Intentos hasta que cargue la SPA
         var tries = 0;
         (function waitAnchor(){
-          if (!place() && tries < 80) { // ~10-12s de margen si carga lento
+          if (!place() && tries < 80) {
             tries++; setTimeout(waitAnchor, 150);
           } else if (!place()) {
-            // Si no hay ancla, al menos se muestra arriba para no perder SEO
             card.style.opacity = '1';
             card.style.height = 'auto';
             card.style.overflow = 'visible';
@@ -439,7 +446,6 @@ function makeBody(city, scriptTag = "") {
     </noscript>
   </body>`;
 }
-
 
 function makeHtml(city) {
   const { cssLinks, scriptTag } = getAssetTags();
@@ -519,13 +525,27 @@ async function writeIndexHub() {
   <meta name="description" content="Cobertura nacional de Agentes de IA en Colombia y Ciudad de Panamá. Encuentra tu ciudad y automatiza ventas y soporte 24/7.">
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="${BASE_URL}/ciudades/">
+  <!-- hreflang autorreferente + x-default -->
+  <link rel="alternate" href="${BASE_URL}/ciudades/" hreflang="es-co" />
+  <link rel="alternate" href="${BASE_URL}/ciudades/" hreflang="es" />
+  <link rel="alternate" href="${BASE_URL}/ciudades/" hreflang="x-default" />
   ${cssLinks}
   <script type="application/ld+json">${JSON.stringify(collection)}</script>
   <script type="application/ld+json">${JSON.stringify(breadcrumbs)}</script>
 </head>
 <body>
+  <!-- H1 de respaldo (se elimina al cargar) -->
+  <h1 id="preload-h1-ciudades" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;">
+    Agentes de IA por ciudad en Colombia y Ciudad de Panamá
+  </h1>
   <div id="root"></div>
   ${scriptTag}
+  <script>
+    window.addEventListener('DOMContentLoaded', function () {
+      var ph = document.getElementById('preload-h1-ciudades');
+      if (ph) ph.remove();
+    });
+  </script>
 </body>
 </html>`;
   await fsp.writeFile(path.join(hubDir, "index.html"), html, "utf8");
