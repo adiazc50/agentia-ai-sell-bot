@@ -228,6 +228,19 @@ function makeHead(city, extraCssLinks = "") {
     ],
   };
 
+  // GTM
+  const gtmId = "GTM-NHHD5TPT";
+  const dataLayerName = "dataLayer";
+  const gtmHead = `
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='${dataLayerName}'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','${dataLayerName}','${gtmId}');</script>
+    <!-- End Google Tag Manager -->
+  `;
+
   // hreflang: solo autorreferencia + x-default (evitamos alternates falsos)
   const hrefLangSelf = `<link rel="alternate" hreflang="${city.locale}" href="${esc(canonical)}" />`;
   const hrefLangDefault = `<link rel="alternate" hreflang="x-default" href="${esc(canonical)}" />`;
@@ -235,6 +248,7 @@ function makeHead(city, extraCssLinks = "") {
   return `
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    ${gtmHead}
     <title>${esc(title)}</title>
     <meta name="description" content="${esc(description)}" />
     <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large" />
@@ -273,10 +287,24 @@ function makeHead(city, extraCssLinks = "") {
   `;
 }
 
+
 // ---------- BODY (con bloque SEO visible + acordeón) ----------
-function makeBody(city, scriptTag = "") {
+function makeBody(city, scriptTag = "", options = {}) {
   const cityName = city.name;
   const nearby = getNearby(city.slug, 3);
+
+  // Opcional: parametrizar GTM
+  const gtmId = options.gtmId || "GTM-NHHD5TPT";
+
+  // GTM <noscript> debe ir justo después de <body>
+  const gtmNoScript = `
+    <!-- Google Tag Manager (noscript) -->
+    <noscript>
+      <iframe src="https://www.googletagmanager.com/ns.html?id=${gtmId}"
+              height="0" width="0" style="display:none;visibility:hidden"></iframe>
+    </noscript>
+    <!-- End Google Tag Manager (noscript) -->
+  `;
 
   const faq = {
     "@context": "https://schema.org",
@@ -332,6 +360,8 @@ function makeBody(city, scriptTag = "") {
 
   return `
   <body>
+    ${gtmNoScript}
+
     <!-- H1 de respaldo para analizadores que no ejecutan JS (se elimina al cargar). -->
     <h1 id="preload-h1-city"
         style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;">
@@ -447,6 +477,7 @@ function makeBody(city, scriptTag = "") {
   </body>`;
 }
 
+
 function makeHtml(city) {
   const { cssLinks, scriptTag } = getAssetTags();
   return `<!DOCTYPE html>
@@ -484,7 +515,11 @@ ${items}
 }
 
 async function writeSitemapAndRobots() {
-  const urls = [BASE_URL + "/", ...CITIES.map((c) => `${BASE_URL}/ciudades/${c.slug}/`)];
+  const urls = [
+    BASE_URL + "/",
+    `${BASE_URL}/ciudades/`, // <- hub de ciudades
+    ...CITIES.map((c) => `${BASE_URL}/ciudades/${c.slug}/`),
+  ];
   await fsp.writeFile(path.join(PUBLIC_DIR, "sitemap.xml"), buildSitemap(urls), "utf8");
   await fsp.writeFile(
     path.join(PUBLIC_DIR, "robots.txt"),
@@ -516,11 +551,30 @@ async function writeIndexHub() {
     ],
   };
 
+  // GTM para el hub
+  const gtmId = "GTM-NHHD5TPT";
+  const gtmHead = `
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','${gtmId}');</script>
+  <!-- End Google Tag Manager -->
+  `;
+  const gtmNoScript = `
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${gtmId}"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
+  `;
+
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  ${gtmHead}
   <title>Agentes de IA por ciudad | SoyAgentia</title>
   <meta name="description" content="Cobertura nacional de Agentes de IA en Colombia y Ciudad de Panamá. Encuentra tu ciudad y automatiza ventas y soporte 24/7.">
   <meta name="robots" content="index,follow,max-image-preview:large" />
@@ -534,6 +588,7 @@ async function writeIndexHub() {
   <script type="application/ld+json">${JSON.stringify(breadcrumbs)}</script>
 </head>
 <body>
+  ${gtmNoScript}
   <!-- H1 de respaldo (se elimina al cargar) -->
   <h1 id="preload-h1-ciudades" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;">
     Agentes de IA por ciudad en Colombia y Ciudad de Panamá

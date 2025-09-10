@@ -6,14 +6,14 @@ import { useLocation } from "react-router-dom";
 
 // Mapa slug -> etiqueta bonita
 const CITY_LABEL: Record<string, string> = {
-  "medellin": "Medellín","bogota": "Bogotá","cali": "Cali","barranquilla": "Barranquilla",
-  "cartagena": "Cartagena","bucaramanga": "Bucaramanga","cucuta": "Cúcuta","pereira": "Pereira",
-  "manizales": "Manizales","armenia": "Armenia","ibague": "Ibagué","pasto": "Pasto",
-  "monteria": "Montería","neiva": "Neiva","villavicencio": "Villavicencio","popayan": "Popayán",
-  "sincelejo": "Sincelejo","tunja": "Tunja","yopal": "Yopal","riohacha": "Riohacha",
-  "quibdo": "Quibdó","florencia": "Florencia","mocoa": "Mocoa","mitu": "Mitú",
-  "san-andres": "San Andrés","leticia": "Leticia","inirida": "Inírida",
-  "puerto-carreno": "Puerto Carreño","valledupar": "Valledupar","santa-marta": "Santa Marta",
+  "medellin": "Medellín", "bogota": "Bogotá", "cali": "Cali", "barranquilla": "Barranquilla",
+  "cartagena": "Cartagena", "bucaramanga": "Bucaramanga", "cucuta": "Cúcuta", "pereira": "Pereira",
+  "manizales": "Manizales", "armenia": "Armenia", "ibague": "Ibagué", "pasto": "Pasto",
+  "monteria": "Montería", "neiva": "Neiva", "villavicencio": "Villavicencio", "popayan": "Popayán",
+  "sincelejo": "Sincelejo", "tunja": "Tunja", "yopal": "Yopal", "riohacha": "Riohacha",
+  "quibdo": "Quibdó", "florencia": "Florencia", "mocoa": "Mocoa", "mitu": "Mitú",
+  "san-andres": "San Andrés", "leticia": "Leticia", "inirida": "Inírida",
+  "puerto-carreno": "Puerto Carreño", "valledupar": "Valledupar", "santa-marta": "Santa Marta",
   "ciudad-de-panama": "Ciudad de Panamá"
 };
 
@@ -106,7 +106,15 @@ const HeroSection = () => {
               variant="outline"
               size="lg"
               className="border-accent/50 text-accent hover:bg-accent/10 text-lg px-8 py-6"
-              onClick={() => document.getElementById("casos-uso")?.scrollIntoView({ behavior: "smooth" })}
+              onClick={() => {
+                const el = document.querySelector('#casos-de-uso');
+                if (el) {
+                  (el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                  // Fallback por si el nodo aún no existe por alguna razón
+                  window.location.hash = 'casos-de-uso';
+                }
+              }}
             >
               Ver casos de uso
             </Button>
