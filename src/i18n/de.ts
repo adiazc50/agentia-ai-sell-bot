@@ -1,0 +1,170 @@
+const de: Record<string, string> = {
+  "nav.home": "Startseite", "nav.platforms": "Plattformen", "nav.plans": "Pläne", "nav.services": "Dienstleistungen", "nav.about": "Über uns", "nav.cities": "Städte", "nav.contact": "Kontakt", "nav.viewAllCities": "Alle Städte anzeigen", "nav.viewPlans": "Pläne und Preise", "nav.platformAI": "KI-Agenten für", "nav.login": "Anmelden", "nav.register": "Konto erstellen", "nav.logout": "Abmelden", "nav.myAccount": "Mein Konto",
+  "hero.worldwide": "Weltweite Abdeckung", "hero.countriesCities": "31 Länder und über 2.900 Städte", "hero.cityAndWorld": "{city} und weltweit", "hero.implementation": "Einrichtung in 5 Minuten", "hero.aiAgentsIn": "KI-Agenten in", "hero.salesAutomation": ": Verkauf und 24/7-Automatisierung", "hero.subtitle": "Automatisieren Sie Verkauf, Marketing und Support mit KI-Gesprächsagenten, integriert in WhatsApp, Web und CRM.", "hero.subtitleCity": "Agile Implementierung und kontinuierlicher Support für Unternehmen in {city}.", "hero.ctaWhatsapp": "Über WhatsApp kontaktieren", "hero.ctaUseCases": "Anwendungsfälle ansehen", "hero.stat.implementation": "Einrichtung", "hero.stat.responseTime": "Antwortzeit", "hero.stat.support": "Ständiger Support", "hero.trustLine": "Mehr als eine Agentur: eigene KI- und Robotikentwicklung für messbare Ergebnisse", "hero.badge.aiAgents": "KI-Agenten in {city}", "hero.badge.quickSetup": "Einrichtung in 5 Minuten",
+  "features.title": "Was kann Ihr", "features.titleEnd": "?", "features.subtitle": "Funktionen zur Maximierung Ihrer Präsenz und Ihres Umsatzes.",
+  "pricing.badge": "Transparente Preise", "pricing.title": "Wählen Sie Ihren", "pricing.titleHighlight": "idealen Plan", "pricing.subtitle": "Alle Pläne beinhalten Zugang zu WhatsApp, Instagram, Messenger, TikTok und WordPress ohne Aufpreis.", "pricing.monthly": "Monatlich", "pricing.semiannual": "Halbjährlich", "pricing.annual": "Jährlich", "pricing.popular": "Am beliebtesten", "pricing.trial": "{days} Tage testen", "pricing.responses": "Antworten/Monat", "pricing.user": "Benutzer", "pricing.users": "Benutzer", "pricing.perMonth": "USD/Monat", "pricing.total": "Gesamt", "pricing.months6": "6 Monate", "pricing.months12": "12 Monate", "pricing.save": "Sie sparen", "pricing.verificationFee": "Nur Verifizierungsgebühr: 0,39 $ USD", "pricing.tryFree": "Kostenlos testen", "pricing.buyPlan": "Plan kaufen", "pricing.alsoAvailable": "Auch verfügbar auf:", "pricing.noExtraCost": "Ohne Aufpreis", "pricing.metaNote": "* Massennachrichten nutzen die offizielle Meta-API.", "pricing.currencyNote": "Alle Preise in USD.", "pricing.securePayment": "Sichere Zahlung", "pricing.instantActivation": "Sofortige Aktivierung", "pricing.cancelAnytime": "Jederzeit kündbar",
+  "cta.title": "Sind Sie bereit, einen", "cta.titleHighlight": "Verkaufsroboter", "cta.titleEnd": "zu haben?", "cta.subtitle": "Warten Sie nicht. Transformieren Sie Ihr Unternehmen mit KI-Agenten, die 24/7 arbeiten.", "cta.whatsapp": "Kontaktieren Sie uns über WhatsApp", "cta.trust1": "Einrichtung in 5 Minuten", "cta.trust2": "24/7 technischer Support", "cta.trust3": "Ergebnisgarantie", "cta.joinCompanies": "Schließen Sie sich Unternehmen an, die bereits ihre Zukunft automatisieren",
+  "footer.description": "Technologieunternehmen spezialisiert auf KI-Agenten und maßgeschneiderte Unternehmensrobotik.", "footer.contact": "Kontakt", "footer.followUs": "Folgen Sie uns", "footer.services": "Dienstleistungen", "footer.service1": "Konversations-KI-Agenten", "footer.service2": "Verkaufsautomatisierung", "footer.service3": "ERP/CRM-Integration", "footer.service4": "KI-Beratung", "footer.rights": "Alle Rechte vorbehalten.", "footer.madeIn": "Entwickelt mit eigener Technologie in Medellín, Kolumbien",
+  "about.team": "Unser Team", "about.title": "Über uns", "about.p1": "Bei Agentia glauben wir an die Kraft kollektiver Arbeit.", "about.p1Bold": "KI-Agenten zu schaffen, die Prozesse neu definieren und echte Transformationen erzeugen.", "about.p2": "Unter der Führung unseres CEO,", "about.p2Name": "Alejandro Díaz", "about.p2Title": "Weltmeister in Robotik", "about.p2End": ", bringen wir Expertise in technologischer Innovation und disruptiver Vision.", "about.ceoRole": "CEO & Gründer — Robotik-Weltmeister", "about.ceoBio": "Mit internationaler Erfahrung in Robotik und KI führt Alejandro ein leidenschaftliches Team.", "about.citiesCovered": "Abgedeckte Städte", "about.platformsIntegrated": "Integrierte Plattformen", "about.continuousSupport": "Ständiger Support", "about.aiResponseTime": "KI-Antwortzeit", "about.valuesTitle": "Was uns", "about.valuesHighlight": "ausmacht", "about.valuesSubtitle": "Unsere Prinzipien leiten jede Lösung.", "about.value1.title": "Innovation mit Zweck", "about.value1.desc": "Wir schaffen Technologie, die echte Probleme löst.", "about.value2.title": "Kollektives Talent", "about.value2.desc": "Unser größtes Kapital ist unser Team.", "about.value3.title": "Messbare Ergebnisse", "about.value3.desc": "Wir versprechen keine Magie. Wir liefern echte Metriken.", "about.value4.title": "Regionale Reichweite", "about.value4.desc": "Wir operieren zwischen Kolumbien und Panama mit globaler Vision.", "about.ctaTitle": "Bereit, Ihr", "about.ctaHighlight": "Unternehmen", "about.ctaSubtitle": "Entdecken Sie unsere KI-Lösungen.", "about.ctaButton": "Jetzt starten", "about.ctaPlans": "Pläne ansehen",
+  "platform.startNow": "Jetzt starten", "platform.viewPlans": "Pläne ansehen", "platform.aiAutomation": "KI-Automatisierung", "platform.immediateSetup": "Sofortige Einrichtung", "platform.certified": "Zertifiziert", "platform.whatCanDo": "Was kann Ihr", "platform.agentIA": "KI-Agent", "platform.in": "auf", "platform.featuresSubtitle": "Funktionen zur Maximierung Ihrer Präsenz auf {platform}.", "platform.buyNow": "Jetzt kaufen", "platform.trustSetup": "Sofortige Einrichtung", "platform.trustSupport": "24/7 Support", "platform.trustResults": "Ergebnisgarantie", "platform.joinCompanies": "Schließen Sie sich Unternehmen an, die {platform} mit Agentia automatisieren",
+  "coverage.title": "Weltweite Abdeckung", "coverage.viewMore": "Mehr Länder anzeigen", "coverage.viewAll": "Alle Länder und Städte", "coverage.searchPlaceholder": "Land oder Stadt suchen...",
+  "common.loading": "Laden...", "common.backHome": "Zurück zur Startseite", "common.notFound": "Seite nicht gefunden", "common.skipToContent": "Zum Inhalt springen",
+
+  // UseCasesSection
+  "usecases.title": "Anwendungsfälle, die", "usecases.titleHighlight": "Unternehmen transformieren", "usecases.subtitle": "Unsere KI-Agenten in {city} passen sich an jede Branche und jeden Geschäftsprozess an.", "usecases.quote": "Angebot anfordern",
+  "usecases.case1.title": "KI-Technologieberatung", "usecases.case1.desc": "Automatisierte Analysen und Empfehlungen zur Optimierung von Geschäftsprozessen mit künstlicher Intelligenz.", "usecases.case1.f1": "Automatische Analyse", "usecases.case1.f2": "KI-Empfehlungen", "usecases.case1.f3": "Kontinuierliche Optimierung",
+  "usecases.case2.title": "Automatisierter Sprachverkauf", "usecases.case2.desc": "Agenten, die bis zu 10.000 Anrufe pro Minute tätigen, um Kunden zu kontaktieren und Verkäufe automatisch abzuschließen.", "usecases.case2.f1": "Massenanrufe", "usecases.case2.f2": "Spracherkennung", "usecases.case2.f3": "Intelligente Nachverfolgung",
+  "usecases.case3.title": "Social-Media-Support", "usecases.case3.desc": "Bots, die Nachrichten auf WhatsApp, Instagram, Facebook und anderen Plattformen rund um die Uhr beantworten.", "usecases.case3.f1": "Sofortige Antworten", "usecases.case3.f2": "Mehrere Plattformen", "usecases.case3.f3": "Personalisierung",
+  "usecases.case4.title": "Bestandsverknüpfter Verkauf", "usecases.case4.desc": "KI integriert in Ihr ERP, die personalisierte Produkte basierend auf Bestand und Kundenpräferenzen anbietet.", "usecases.case4.f1": "ERP-Integration", "usecases.case4.f2": "Personalisierte Angebote", "usecases.case4.f3": "Echtzeit-Bestand",
+  "usecases.case5.title": "Forderungsmanagement", "usecases.case5.desc": "Intelligente Bots, die überfällige Rechnungen verfolgen und das Inkasso automatisch verwalten.", "usecases.case5.f1": "Automatische Nachverfolgung", "usecases.case5.f2": "Intelligente Erinnerungen", "usecases.case5.f3": "Inkassoverwaltung",
+  "usecases.case6.title": "Automatische Terminplanung", "usecases.case6.desc": "Agenten, die Termine koordinieren, Verfügbarkeit bestätigen und Erinnerungen ohne menschliches Eingreifen senden.", "usecases.case6.f1": "Intelligente Koordination", "usecases.case6.f2": "Automatische Bestätigungen", "usecases.case6.f3": "Erinnerungen",
+  "usecases.case7.title": "Massen-Marketingkampagnen", "usecases.case7.desc": "Durchführung von Omnichannel-Kampagnen mit KI, die Zielgruppen segmentiert und Nachrichten automatisch personalisiert.", "usecases.case7.f1": "KI-Segmentierung", "usecases.case7.f2": "Omnichannel", "usecases.case7.f3": "Massenpersonalisierung",
+  "usecases.case8.title": "Lead-Generierung", "usecases.case8.desc": "Konversations-KI, die potenzielle Leads über mehrere digitale Kanäle identifiziert, qualifiziert und pflegt.", "usecases.case8.f1": "Automatische Identifikation", "usecases.case8.f2": "Intelligente Qualifizierung", "usecases.case8.f3": "Lead-Nurturing",
+
+  // TechSection
+  "tech.title": "Technologie", "tech.titleHighlight": "FORTGESCHRITTEN", "tech.titleEnd": "um Ihr Wachstum zu automatisieren", "tech.subtitle": "Mehr als eine Agentur: Wir sind ein technologiebasiertes Unternehmen in Medellín mit eigener KI- und Unternehmensrobotik-Entwicklung.",
+  "tech.techLabel": "Verwendete Technologien und Plattformen",
+  "tech.cap1.title": "Fortgeschrittene Künstliche Intelligenz", "tech.cap1.desc": "Modernste KI-Modelle für natürliches Sprachverständnis und -generierung",
+  "tech.cap2.title": "Skalierbare Infrastruktur", "tech.cap2.desc": "Cloud-Architektur, die mit Ihrem Unternehmenswachstum grenzenlos skaliert",
+  "tech.cap3.title": "Vollständige Integration", "tech.cap3.desc": "Wir verbinden mit jedem System: ERP, CRM, Datenbanken und bestehende APIs",
+  "tech.cap4.title": "Omnichannel-Präsenz", "tech.cap4.desc": "Ein einziger Agent, der auf Web, Mobilgeräten, WhatsApp, sozialen Medien und Telefon funktioniert",
+  "tech.cap5.title": "Mobile Erfahrung", "tech.cap5.desc": "Optimiert für mobile Geräte mit intuitiven und responsiven Oberflächen",
+  "tech.cap6.title": "Echtzeit-Verarbeitung", "tech.cap6.desc": "Sofortige Antworten mit verteilter Hochgeschwindigkeitsverarbeitung",
+  "tech.cap7.title": "Unternehmenssicherheit", "tech.cap7.desc": "Sicherheitsprotokolle und Best Practices zum Schutz sensibler Daten",
+  "tech.cap8.title": "Schnelle Implementierung", "tech.cap8.desc": "Bereitstellung mit individueller Konfiguration für Ihr Unternehmen",
+  "tech.devTitle": "100% entwickelt in Medellín, Kolumbien", "tech.devDesc": "Unser Team von KI-Ingenieuren arbeitet im Herzen der kolumbianischen technologischen Innovation und schafft Lösungen, die mit lokalem Talent weltweit konkurrieren.",
+  "tech.aboutTitle": "Über uns", "tech.faqTitle": "Häufig gestellte Fragen",
+  "tech.faq1.q": "Was ist ein KI-Agent und wie hilft er mir?", "tech.faq1.a": "Es ist eine autonome Software, die natürliche Sprache versteht und Aufgaben ausführt: Akquise, 24/7-Support, Terminplanung, Lead-Tracking, Inkasso und mehr.",
+  "tech.faq2.q": "Wie lange dauert die Implementierung?", "tech.faq2.a": "In 48-72 Stunden läuft der Agent in einem ersten Ablauf (MVP) und wir iterieren wöchentlich weiter.",
+  "tech.faq3.q": "Mit welchen Kanälen und Systemen integriert er sich?", "tech.faq3.a": "Webchat, WhatsApp, Instagram, Facebook, Sprache (Anrufe) und mit ERP/CRM oder Datenbanken via API.",
+  "tech.faq4.q": "Wie messen wir den ROI?", "tech.faq4.a": "Wir definieren KPIs und Dashboards. Im Durchschnitt ist die Wirkung im ersten Monat sichtbar, wenn repetitive Aufgaben automatisiert werden.",
+  "tech.faq5.q": "Was ist mit Sicherheit und Compliance?", "tech.faq5.a": "Wir wenden bewährte Sicherheitspraktiken an und respektieren die Datenrichtlinien des Kunden.",
+  "tech.faq6.q": "Was sind die Kosten?", "tech.faq6.a": "Abonnementmodell + Kanalverbrauch. Wir erstellen Angebote basierend auf Volumen und erforderlichen Integrationen.",
+
+  // Index
+  "index.citiesTitle": "KI-Agenten nach Stadt",
+
+  // Plan Features - Test (plan0)
+  "plan.test.f1": "250 KI-Antworten",
+  "plan.test.f2": "1 Benutzer inklusive",
+  "plan.test.f3": "7 Tage Testphase",
+  "plan.test.f4": "Massennachrichten über offizielle Meta-API*",
+  "plan.test.f5": "Verifizierungsgebühr: 0,39 $ USD",
+  "plan.test.f6": "Automatische Abbuchung am Ende",
+
+  // Plan Features - Starter (plan1)
+  "plan.starter.f1": "250 KI-Antworten/Monat",
+  "plan.starter.f2": "1 Benutzer inklusive",
+  "plan.starter.f3": "24/7 automatische Antworten",
+  "plan.starter.f4": "WhatsApp-Integration",
+  "plan.starter.f5": "Massennachrichten über offizielle Meta-API*",
+  "plan.starter.f6": "Monatlich wiederkehrende Abrechnung",
+
+  // Plan Features - Mini (plan2)
+  "plan.mini.f1": "500 KI-Antworten/Monat",
+  "plan.mini.f2": "1 Benutzer inklusive",
+  "plan.mini.f3": "24/7 automatische Antworten",
+  "plan.mini.f4": "WhatsApp-Integration",
+  "plan.mini.f5": "Massennachrichten über offizielle Meta-API*",
+  "plan.mini.f6": "Basis-Dashboard",
+
+  // Plan Features - Basic (plan3)
+  "plan.basic.f1": "1.200 KI-Antworten/Monat",
+  "plan.basic.f2": "1 Benutzer inklusive",
+  "plan.basic.f3": "24/7 automatische Antworten",
+  "plan.basic.f4": "WhatsApp-Integration",
+  "plan.basic.f5": "Massennachrichten über offizielle Meta-API*",
+  "plan.basic.f6": "Vollständiges Dashboard",
+  "plan.basic.f7": "Monatliche Berichte",
+
+  // Plan Features - Plus (plan4)
+  "plan.plus.f1": "3.500 KI-Antworten/Monat",
+  "plan.plus.f2": "2 Benutzer inklusive",
+  "plan.plus.f3": "24/7 automatische Antworten",
+  "plan.plus.f4": "WhatsApp-Integration",
+  "plan.plus.f5": "Massennachrichten über offizielle Meta-API*",
+  "plan.plus.f6": "Erweitertes Dashboard",
+  "plan.plus.f7": "Wöchentliche Berichte",
+  "plan.plus.f8": "Prioritäts-Support",
+
+  // Plan Features - Enterprise (plan5)
+  "plan.enterprise.f1": "7.500 KI-Antworten/Monat",
+  "plan.enterprise.f2": "5 Benutzer inklusive",
+  "plan.enterprise.f3": "24/7 automatische Antworten",
+  "plan.enterprise.f4": "WhatsApp-Integration",
+  "plan.enterprise.f5": "Massennachrichten über offizielle Meta-API*",
+  "plan.enterprise.f6": "Erweitertes Dashboard",
+  "plan.enterprise.f7": "Echtzeit-Berichte",
+  "plan.enterprise.f8": "Dedizierter 24/7-Support",
+  "plan.enterprise.f9": "Erweiterte Anpassung",
+
+  // WhatsApp Platform
+  "wp.headline": "Wachsen Sie mit", "wp.subtitle": "Automatisieren Sie Verkauf, Support und Marketing mit KI-Agenten direkt in WhatsApp Business. Sofortige 24/7-Antworten.", "wp.badge": "Zertifizierter Offizieller Partner", "wp.badgeSub": "Verifizierte Integration mit WhatsApp Business API", "wp.f1.t": "Konversations-KI", "wp.f1.d": "Intelligente Agenten, die den Kontext verstehen und wie ein Verkaufsexperte antworten.", "wp.f2.t": "24/7 Verfügbar", "wp.f2.d": "Ihr Agent schläft nie. Bedient Kunden rund um die Uhr.", "wp.f3.t": "Sicher & Verschlüsselt", "wp.f3.d": "Ende-zu-Ende verschlüsselte Kommunikation mit höchsten Sicherheitsstandards.", "wp.f4.t": "Echtzeit-Analytik", "wp.f4.d": "Komplettes Dashboard mit Gesprächs-, Konversions- und Zufriedenheitsmetriken.", "wp.f5.t": "Einrichtung in 5 Min", "wp.f5.d": "Verbinden Sie Ihre WhatsApp Business-Nummer und automatisieren Sie in Minuten.", "wp.f6.t": "Übergabe an Menschen", "wp.f6.d": "Eskalieren Sie komplexe Gespräche an Ihr Team ohne Kontextverlust.", "wp.f7.t": "Zahlungsbenachrichtigungen", "wp.f7.d": "Automatische Rechnungsbenachrichtigungen, Zahlungsbestätigungen und Erinnerungen.", "wp.f8.t": "Datenerfassung", "wp.f8.d": "Sammeln Sie Kundendaten automatisch während des Gesprächs.", "wp.f9.t": "CRM-Integration", "wp.f9.d": "Synchronisieren Sie Kontakte und Gespräche mit Ihrem CRM in Echtzeit.", "wp.s1": "Einrichtung", "wp.s2": "Antwortrate", "wp.s3": "Ständiger Support", "wp.cta": "Bereit, Ihr WhatsApp zu automatisieren?", "wp.ctaSub": "Schließen Sie sich Hunderten von Unternehmen an, die mit KI-Agenten auf WhatsApp mehr verkaufen.",
+
+  // Instagram Platform
+  "ig.headline": "Automatisieren Sie Ihre Präsenz auf", "ig.subtitle": "Antworten Sie auf DMs, Kommentare und Stories automatisch mit KI. Verwandeln Sie Follower in Kunden.", "ig.badge": "Zertifizierter Offizieller Partner", "ig.badgeSub": "Verifizierte Integration mit Instagram API", "ig.f1.t": "Intelligente DM-Antworten", "ig.f1.d": "KI-Agenten, die Direktnachrichten mit Kontext und Personalisierung beantworten.", "ig.f2.t": "Automatisches Engagement", "ig.f2.d": "Interagieren Sie automatisch mit Ihrem Publikum.", "ig.f3.t": "Kommentar-Management", "ig.f3.d": "Beantworten Sie Kommentare zu Posts und Reels intelligent.", "ig.f4.t": "Erweiterte Analytik", "ig.f4.d": "Detaillierte Metriken zu Interaktion, Konversion und Wachstum.", "ig.f5.t": "Schnelle Einrichtung", "ig.f5.d": "Verbinden Sie Ihr Business-Konto und aktivieren Sie die Automatisierung.", "ig.f6.t": "Team-Eskalation", "ig.f6.d": "Leiten Sie komplexe Gespräche an Ihr Team weiter.", "ig.f7.t": "Automatisierte Kampagnen", "ig.f7.d": "Senden Sie Massennachrichten und segmentierte Kampagnen.", "ig.f8.t": "Lead-Erfassung", "ig.f8.d": "Sammeln Sie Kundendaten aus Instagram-Interaktionen.", "ig.f9.t": "CRM-Synchronisation", "ig.f9.d": "Integrieren Sie alle Instagram-Gespräche mit Ihrem CRM.", "ig.s1": "Mehr Engagement", "ig.s2": "Auto-Antwort", "ig.s3": "24/7 Support", "ig.cta": "Bereit, Ihr Instagram zu automatisieren?", "ig.ctaSub": "Verwandeln Sie Ihr Instagram mit KI-Agenten in eine Verkaufsmaschine.",
+
+  // Messenger Platform
+  "ms.headline": "Verbinden und verkaufen mit", "ms.subtitle": "Automatisieren Sie den Kundenservice auf Facebook Messenger mit KI-Agenten.", "ms.badge": "Zertifizierter Offizieller Partner", "ms.badgeSub": "Verifizierte Integration mit Messenger Platform", "ms.f1.t": "Intelligenter Chatbot", "ms.f1.d": "KI-Agenten, die komplexe Messenger-Gespräche natürlich führen.", "ms.f2.t": "Sofortige Antworten", "ms.f2.d": "Antwortzeit unter 3 Sekunden, 24/7.", "ms.f3.t": "Facebook-Sicherheit", "ms.f3.d": "Kommunikation geschützt durch Meta-Sicherheitsstandards.", "ms.f4.t": "Metriken-Dashboard", "ms.f4.d": "Visualisieren Sie die Leistung mit Echtzeit-Analytik.", "ms.f5.t": "Sofortige Aktivierung", "ms.f5.d": "Verbinden Sie Ihre Facebook-Seite und aktivieren Sie den Agenten.", "ms.f6.t": "Intelligente Übergabe", "ms.f6.d": "Übergeben Sie Gespräche an menschliche Agenten bei Bedarf.", "ms.f7.t": "Mehrfachintegrationen", "ms.f7.d": "Verbinden Sie mit Ihrem E-Commerce, CRM und Marketing-Tools.", "ms.f8.t": "Wissensbasis", "ms.f8.d": "Der Agent lernt Ihr Geschäft für präzisere Antworten.", "ms.f9.t": "Kontaktverwaltung", "ms.f9.d": "Organisieren und segmentieren Sie Kontakte automatisch.", "ms.s1": "Antwortzeit", "ms.s2": "Auto-Lösung", "ms.s3": "Verfügbarkeit", "ms.cta": "Bereit, Ihren Messenger zu automatisieren?", "ms.ctaSub": "Machen Sie Facebook Messenger zu Ihrem stärksten Verkaufskanal.",
+
+  // TikTok Platform
+  "tt.headline": "Wachsen und verkaufen auf", "tt.subtitle": "Automatisieren Sie die Interaktion mit Ihrem TikTok-Publikum.", "tt.badge": "Zertifizierter Offizieller Partner", "tt.badgeSub": "Verifizierte Integration mit TikTok for Business", "tt.f1.t": "KI für Kommentare", "tt.f1.d": "Antworten Sie automatisch auf Videokommentare mit personalisierten Nachrichten.", "tt.f2.t": "Video-Engagement", "tt.f2.d": "Steigern Sie die Interaktion mit intelligenten Antworten.", "tt.f3.t": "Lead-Erfassung", "tt.f3.d": "Konvertieren Sie Zuschauer direkt von TikTok in qualifizierte Leads.", "tt.f4.t": "Performance-Analytik", "tt.f4.d": "Detaillierte Metriken zu Engagement, Konversion und Wachstum.", "tt.f5.t": "Schnelle Einrichtung", "tt.f5.d": "Verbinden Sie Ihr TikTok Business-Konto und aktivieren Sie die Automatisierung.", "tt.f6.t": "Community-Management", "tt.f6.d": "Verwalten Sie Ihre TikTok-Community mit KI-Unterstützung.", "tt.f7.t": "Virale Kampagnen", "tt.f7.d": "Verstärken Sie Ihre Kampagnenreichweite mit automatisierten Interaktionen.", "tt.f8.t": "Zielgruppendaten", "tt.f8.d": "Sammeln und analysieren Sie Zielgruppendaten.", "tt.f9.t": "CRM-Integration", "tt.f9.d": "Synchronisieren Sie TikTok-Leads mit Ihrem CRM.", "tt.s1": "Mehr Interaktionen", "tt.s2": "Zeitersparnis", "tt.s3": "Ständiges Engagement", "tt.cta": "Bereit, Ihr TikTok zu automatisieren?", "tt.ctaSub": "Nutzen Sie die Kraft von TikTok mit KI-Agenten.",
+
+  // WordPress Platform
+  "ww.headline": "Automatisieren Sie Ihre Website mit", "ww.subtitle": "Integrieren Sie KI-Agenten direkt in Ihre WordPress-Seite. Intelligente Chatbots für Besucher.", "ww.badge": "Zertifiziertes Offizielles Plugin", "ww.badgeSub": "Kompatibel mit WordPress 5.0+ und WooCommerce", "ww.f1.t": "Chatbot auf Ihrer Seite", "ww.f1.d": "Intelligentes Chat-Widget, das sich nahtlos in Ihr WordPress-Theme integriert.", "ww.f2.t": "Native Integration", "ww.f2.d": "Offizielles Plugin mit Ein-Klick-Installation ohne Programmierung.", "ww.f3.t": "Volle Anpassung", "ww.f3.d": "Passen Sie Farben, Position und Verhalten an Ihre Marke an.", "ww.f4.t": "Integrierte Analytik", "ww.f4.d": "Metriken-Panel in Ihrem WordPress-Dashboard.", "ww.f5.t": "1-Klick-Installation", "ww.f5.d": "Installieren Sie das Plugin, konfigurieren Sie und Ihr KI-Agent ist bereit.", "ww.f6.t": "WooCommerce Ready", "ww.f6.d": "Native Integration mit WooCommerce für Bestellungsunterstützung.", "ww.f7.t": "Benachrichtigungen", "ww.f7.d": "Erhalten Sie Alerts für wichtige Gespräche im Admin.", "ww.f8.t": "Formular-Erfassung", "ww.f8.d": "Sammeln Sie Besucherdaten und synchronisieren Sie mit Contact Form 7, etc.", "ww.f9.t": "CRM-Synchronisation", "ww.f9.d": "Verbinden Sie WordPress mit HubSpot, Salesforce und anderen CRMs.", "ww.s1": "Installation", "ww.s2": "Mehr Konversionen", "ww.s3": "24/7 auf Ihrer Seite", "ww.cta": "Bereit, Ihr WordPress zu automatisieren?", "ww.ctaSub": "Verwandeln Sie Ihre Website in eine Verkaufsmaschine mit einem KI-Agenten.",
+
+  // Auth
+  "auth.backHome": "Zurück zur Startseite",
+  "auth.completeProfile": "Profil vervollständigen",
+  "auth.createAccount": "Konto erstellen",
+  "auth.emailLabel": "E-Mail",
+  "auth.forgotPassword": "Passwort vergessen?",
+  "auth.loginCta": "Anmelden",
+  "auth.loginSubtitle": "Melden Sie sich an, um Ihre KI-Agenten zu verwalten",
+  "auth.passwordLabel": "Passwort",
+  "auth.processing": "Verarbeitung...",
+  "auth.profileSubtitle": "Wir benötigen einige Informationen, um Ihre Erfahrung zu personalisieren",
+  "auth.signupPlanPrefix": "Ausgewählter Plan:",
+  "auth.signupSubtitle": "Erstellen Sie Ihr Konto und beginnen Sie noch heute mit der Automatisierung",
+  "auth.welcomeBack": "Willkommen zurück",
+
+  // Common (additional)
+  "common.perMonth": "/Monat",
+  "common.perSemester": "/Halbjahr",
+  "common.perYear": "/Jahr",
+
+  // Hero (additional)
+  "hero.certified": "Zertifiziert",
+  "hero.certifiedDesc": "Verifizierte Integration",
+  "hero.officialPartner": "Offizieller Partner",
+
+  // Pricing (additional)
+  "pricing.conversationNote": "KI-Antworten pro Monat inklusive",
+  "pricing.conversations": "Antworten",
+  "pricing.customPlan": "Individueller Plan",
+  "pricing.customSubtitle": "Konfigurieren Sie Ihren maßgeschneiderten Plan",
+  "pricing.dedicatedManager": "Dedizierter Account-Manager",
+  "pricing.freeDataAccess": "Kostenloser Datenzugang",
+  "pricing.freeDataLogging": "Kostenlose Datenprotokollierung",
+  "pricing.freeTrial": "Kostenlose Testversion",
+  "pricing.fromUSD": "ab",
+  "pricing.includedUsers": "Benutzer inklusive",
+  "pricing.loginFirst": "Zuerst anmelden",
+  "pricing.loginFirstDesc": "Sie benötigen ein Konto, um einen Plan zu kaufen",
+  "pricing.messagesPerMonth": "Nachrichten pro Monat",
+  "pricing.moreUsers": "zusätzliche Benutzer",
+  "pricing.notifyPay": "Zahlung melden",
+  "pricing.payToday": "Heute bezahlen",
+  "pricing.perUser": "pro Benutzer",
+  "pricing.pricePerMessage": "pro Nachricht",
+  "pricing.processing": "Verarbeitung...",
+  "pricing.selectCustomPlan": "Individuellen Plan auswählen",
+  "pricing.selectPlan": "Plan auswählen",
+  "pricing.slaGuaranteed": "SLA garantiert",
+  "pricing.startFreeTrial": "Kostenlose Testversion starten",
+  "pricing.totalUsers": "Benutzer insgesamt",
+  "pricing.youSave": "Sie sparen",
+  "pricing.additionalUsers": "Zusätzliche Benutzer",
+  "pricing.allEnterprise": "Alles in Enterprise",
+};
+export default de;

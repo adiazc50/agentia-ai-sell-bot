@@ -1,59 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* SoyAgentia Design System - Futuristic AI Theme with Corporate Orange #FF8500 
-All colors MUST be HSL.
-*/
+/* SoyAgentia Design System - Light Green Theme (WhatsApp style) */
 
 @layer base {
   :root {
-    /* Background System - Dark futuristic theme */
-    --background: 220 20% 8%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 100%;
+    --foreground: 160 10% 15%;
 
-    --card: 220 25% 12%;
-    --card-foreground: 210 40% 98%;
+    --card: 150 20% 97%;
+    --card-foreground: 160 10% 15%;
 
-    --popover: 220 25% 12%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 160 10% 15%;
 
-    /* Corporate Orange #FF8500 as primary */
-    --primary: 28 100% 50%;
-    --primary-foreground: 220 20% 8%;
-    --primary-glow: 28 100% 60%;
+    /* WhatsApp Green as primary */
+    --primary: 152 69% 41%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 152 60% 50%;
 
-    /* Secondary - Tech blue accent */
-    --secondary: 217 32% 17%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 150 15% 93%;
+    --secondary-foreground: 160 10% 20%;
 
-    /* Muted - Subtle grays */
-    --muted: 220 15% 15%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 150 10% 94%;
+    --muted-foreground: 160 8% 45%;
 
-    /* Accent - Bright tech blue */
-    --accent: 200 90% 50%;
-    --accent-foreground: 220 20% 8%;
+    --accent: 152 60% 36%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 15% 20%;
-    --input: 220 15% 15%;
-    --ring: 28 100% 50%;
+    --border: 150 10% 88%;
+    --input: 150 10% 90%;
+    --ring: 152 69% 41%;
 
     --radius: 0.75rem;
 
-    /* Custom gradients for futuristic effects */
-    --gradient-hero: linear-gradient(135deg, hsl(var(--background)), hsl(220 25% 12%));
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-accent: linear-gradient(90deg, hsl(var(--accent)), hsl(200 80% 60%));
-    
-    /* Glow effects */
-    --glow-primary: 0 0 30px hsl(var(--primary) / 0.5);
-    --glow-accent: 0 0 20px hsl(var(--accent) / 0.3);
-    
-    /* Smooth transitions */
+    --gradient-hero: linear-gradient(135deg, hsl(0 0% 100%), hsl(150 20% 97%));
+    --gradient-primary: linear-gradient(135deg, hsl(152 69% 41%), hsl(152 60% 36%));
+    --gradient-accent: linear-gradient(90deg, hsl(152 60% 36%), hsl(152 69% 41%));
+
+    --glow-primary: 0 0 40px hsl(152 69% 41% / 0.12);
+    --glow-accent: 0 0 40px hsl(152 60% 36% / 0.12);
+    --shadow-card: 0 8px 32px hsl(160 10% 15% / 0.08);
+
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-glow: box-shadow 0.3s ease-in-out;
   }
@@ -65,6 +59,66 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Outfit', sans-serif;
   }
+}
+
+@layer utilities {
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-primary);
+  }
+
+  .glass {
+    @apply backdrop-blur-xl border border-border/50;
+    background: hsl(0 0% 100% / 0.85);
+  }
+
+  .glass-card {
+    @apply backdrop-blur-xl border border-border/30 rounded-2xl;
+    background: linear-gradient(135deg, hsl(150 20% 98% / 0.95), hsl(150 15% 95% / 0.95));
+  }
+
+  .glow-primary {
+    box-shadow: var(--glow-primary);
+  }
+
+  .glow-accent {
+    box-shadow: var(--glow-accent);
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient-shift 8s ease infinite;
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
 }

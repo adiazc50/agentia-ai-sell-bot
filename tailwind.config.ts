@@ -61,7 +61,8 @@ export default {
 			},
 			boxShadow: {
 				'glow-primary': 'var(--glow-primary)',
-				'glow-accent': 'var(--glow-accent)'
+				'glow-accent': 'var(--glow-accent)',
+				'card': 'var(--shadow-card)'
 			},
 			transitionProperty: {
 				'smooth': 'var(--transition-smooth)',

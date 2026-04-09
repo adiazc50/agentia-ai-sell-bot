@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => ({
   base: "/", // por si acaso; en root domain está OK
   server: {
     host: "::",
-    port: 8080,
+    port: 8085,
   },
   plugins: [
     react(),

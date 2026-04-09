@@ -1,80 +1,48 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
-import { MapPin, Search } from "lucide-react";
-
-const CITIES = [
-  { slug: "bogota", label: "Bogotá", cc: "CO" },
-  { slug: "medellin", label: "Medellín", cc: "CO" },
-  { slug: "cali", label: "Cali", cc: "CO" },
-  { slug: "barranquilla", label: "Barranquilla", cc: "CO" },
-  { slug: "cartagena", label: "Cartagena", cc: "CO" },
-  { slug: "bucaramanga", label: "Bucaramanga", cc: "CO" },
-  { slug: "cucuta", label: "Cúcuta", cc: "CO" },
-  { slug: "pereira", label: "Pereira", cc: "CO" },
-  { slug: "manizales", label: "Manizales", cc: "CO" },
-  { slug: "armenia", label: "Armenia", cc: "CO" },
-  { slug: "ibague", label: "Ibagué", cc: "CO" },
-  { slug: "pasto", label: "Pasto", cc: "CO" },
-  { slug: "monteria", label: "Montería", cc: "CO" },
-  { slug: "neiva", label: "Neiva", cc: "CO" },
-  { slug: "villavicencio", label: "Villavicencio", cc: "CO" },
-  { slug: "popayan", label: "Popayán", cc: "CO" },
-  { slug: "sincelejo", label: "Sincelejo", cc: "CO" },
-  { slug: "tunja", label: "Tunja", cc: "CO" },
-  { slug: "yopal", label: "Yopal", cc: "CO" },
-  { slug: "riohacha", label: "Riohacha", cc: "CO" },
-  { slug: "quibdo", label: "Quibdó", cc: "CO" },
-  { slug: "florencia", label: "Florencia", cc: "CO" },
-  { slug: "mocoa", label: "Mocoa", cc: "CO" },
-  { slug: "mitu", label: "Mitú", cc: "CO" },
-  { slug: "san-andres", label: "San Andrés", cc: "CO" },
-  { slug: "leticia", label: "Leticia", cc: "CO" },
-  { slug: "inirida", label: "Inírida", cc: "CO" },
-  { slug: "puerto-carreno", label: "Puerto Carreño", cc: "CO" },
-  { slug: "valledupar", label: "Valledupar", cc: "CO" },
-  { slug: "santa-marta", label: "Santa Marta", cc: "CO" },
-  { slug: "ciudad-de-panama", label: "Ciudad de Panamá", cc: "PA" },
-];
+import { MapPin, Search, Globe } from "lucide-react";
+import { allCountries } from "@/data/seoIndex";
+import { usaStates, totalUSACities } from "@/data/seoUSA";
 
 const norm = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-function Pill({ slug, label, cc }: { slug: string; label: string; cc: string }) {
-  return (
-    <a
-      href={`/ciudades/${slug}/`}
-      title={`Agentes de IA en ${label}`}
-      className="inline-flex items-center gap-2 rounded-full border border-accent/40
-                 bg-background/60 hover:bg-accent/10 hover:border-accent/60
-                 transition-colors text-sm px-3.5 py-1.5"
-    >
-      <MapPin className="w-3.5 h-3.5 text-accent" />
-      <span className="font-semibold whitespace-nowrap">Agentes de IA en {label}</span>
-      <span className="text-xs text-sky-400">{cc}</span>
-    </a>
-  );
-}
 
 export default function CityHub() {
   const [q, setQ] = useState("");
 
   useEffect(() => {
-    document.title = "Agentes de IA por ciudad | SoyAgentia";
+    document.title = "Agentes de IA en el mundo | SoyAgentia";
     const d = document.querySelector('meta[name="description"]') || (() => {
       const m = document.createElement("meta");
       m.setAttribute("name", "description");
       document.head.appendChild(m);
       return m;
     })();
-    d.setAttribute("content", "Cobertura nacional de Agentes de IA en Colombia y Ciudad de Panamá. Encuentra tu ciudad y automatiza ventas y soporte 24/7.");
+    d.setAttribute("content", "Cobertura mundial de Agentes de IA. 31 países, 50 estados de USA y más de 2.900 ciudades. Encuentra tu ciudad y automatiza ventas y soporte 24/7.");
   }, []);
 
-  const shown = useMemo(() => {
+  const totalCities = useMemo(() => {
+    const countryCities = allCountries.reduce((sum, c) => sum + c.cities.length, 0);
+    return countryCities + totalUSACities;
+  }, []);
+
+  const filteredCountries = useMemo(() => {
     const nq = norm(q);
-    if (!nq) return CITIES;
-    return CITIES.filter(c => norm(c.label).includes(nq));
+    if (!nq) return allCountries;
+    return allCountries.filter(c =>
+      norm(c.name).includes(nq) || c.cities.some(city => norm(city.name).includes(nq))
+    );
+  }, [q]);
+
+  const filteredStates = useMemo(() => {
+    const nq = norm(q);
+    if (!nq) return usaStates;
+    return usaStates.filter(s =>
+      norm(s.name).includes(nq) || s.cities.some(city => norm(city.name).includes(nq))
+    );
   }, [q]);
 
   return (
@@ -86,17 +54,30 @@ export default function CityHub() {
         <section className="py-10">
           <div className="container mx-auto px-6">
             <h1 className="text-2xl md:text-4xl font-bold mb-2">
-              Agentes de IA por ciudad
+              Agentes de IA en el mundo
             </h1>
-            <p className="text-muted-foreground mb-6">
-              Colombia y Ciudad de Panamá • Implementación rápida • Soporte 24/7
+            <p className="text-muted-foreground mb-2">
+              {allCountries.length} países + 50 estados de USA &bull; +{totalCities.toLocaleString()} ciudades &bull; Soporte 24/7
             </p>
 
-            <div className="w-full md:w-[420px] relative mb-6">
+            {/* Stats */}
+            <div className="flex flex-wrap gap-4 mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
+                <Globe className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-primary">{allCountries.length} países</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
+                <MapPin className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-primary">+{totalCities.toLocaleString()} ciudades</span>
+              </div>
+            </div>
+
+            {/* Search */}
+            <div className="w-full md:w-[420px] relative mb-8">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="search"
-                placeholder="Buscar ciudad…"
+                placeholder="Buscar país, estado o ciudad..."
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 className="w-full h-10 pl-9 pr-3 rounded-full border border-accent/30
@@ -104,8 +85,47 @@ export default function CityHub() {
               />
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {shown.map(c => <Pill key={c.slug} {...c} />)}
+            {/* Countries */}
+            <h2 className="text-xl font-bold mb-4">Países</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-12">
+              {filteredCountries.map(country => (
+                <Link
+                  key={country.slug}
+                  to={`/${country.slug}`}
+                  className="group p-4 rounded-xl border border-border/50 bg-card/30 hover:border-primary/50 hover:bg-primary/5 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{country.flag}</span>
+                    <div>
+                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{country.name}</h3>
+                      <span className="text-xs text-muted-foreground">{country.cities.length} ciudades</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* USA */}
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="text-xl font-bold">Estados Unidos</h2>
+              <Link to="/usa" className="text-primary text-sm hover:underline">Ver todo →</Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredStates.map(state => (
+                <Link
+                  key={state.slug}
+                  to={`/usa/${state.slug}`}
+                  className="group p-4 rounded-xl border border-border/50 bg-card/30 hover:border-primary/50 hover:bg-primary/5 transition-all"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{state.name}</h3>
+                      <span className="text-xs text-muted-foreground">{state.cities.length} cities</span>
+                    </div>
+                    <span className="text-xs font-mono text-muted-foreground bg-secondary px-2 py-1 rounded">{state.abbr}</span>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
         </section>
