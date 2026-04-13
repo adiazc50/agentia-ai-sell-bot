@@ -240,6 +240,53 @@ const Dashboard = () => {
         return;
       }
 
+      // Check for pending Wompi payment after redirect
+      const pendingPayment = localStorage.getItem('pendingWompiPayment');
+      if (pendingPayment) {
+        try {
+          const pending = JSON.parse(pendingPayment);
+          localStorage.removeItem('pendingWompiPayment');
+
+          // Verify transaction with Wompi by reference
+          const wompiRes = await fetch(
+            `https://production.wompi.co/v1/transactions?reference=${pending.reference}`,
+            { headers: { Authorization: `Bearer ${process.env.WOMPI_PUBLIC_KEY || 'pub_prod_DQNOOAhNajTWFPuNX4hEoLuL1WAKeTS5'}` } }
+          );
+          const wompiData = await wompiRes.json();
+          const wompiTx = wompiData?.data?.[0];
+
+          if (wompiTx && wompiTx.status === 'APPROVED') {
+            await api.transactions.success({
+              email: pending.email,
+              plan_name: pending.plan_name,
+              ai_responses_included: 0,
+              amount: pending.amount,
+              currency: pending.currency,
+              reference: pending.reference,
+              transaction_id: wompiTx.id,
+              payment_method: wompiTx.payment_method?.type || 'CARD',
+              transaction_date: new Date().toISOString(),
+            });
+
+            toast({
+              title: "¡Pago exitoso!",
+              description: `Tu plan ${pending.plan_name} ha sido activado.`,
+            });
+
+            // Refresh transactions
+            const freshTx = await api.transactions.list();
+            setTransactions((freshTx as Transaction[]) || []);
+          } else if (wompiTx && wompiTx.status === 'PENDING') {
+            toast({
+              title: "Pago pendiente",
+              description: "Tu pago está siendo procesado. Se actualizará automáticamente.",
+            });
+          }
+        } catch (pendingErr) {
+          console.error('Error checking pending payment:', pendingErr);
+        }
+      }
+
       setLoading(false);
     };
 
@@ -636,6 +683,15 @@ const Dashboard = () => {
         currency: currencyCode
       });
 
+      // Save pending payment info in localStorage (for redirect recovery)
+      localStorage.setItem('pendingWompiPayment', JSON.stringify({
+        reference,
+        plan_name: pendingPlanName,
+        amount: pendingPaymentAmount,
+        currency: currencyCode,
+        email: profile.user.email,
+      }));
+
       const checkout = new (window as any).WidgetCheckout({
         currency: currencyCode,
         amountInCents: priceInCents,
@@ -653,7 +709,10 @@ const Dashboard = () => {
         const transaction = result.transaction;
         console.log('Transaction result:', transaction);
 
-        // Create transaction only after Wompi responds
+        // Clear pending payment
+        localStorage.removeItem('pendingWompiPayment');
+
+        // Save transaction only if approved
         if (transaction.status === 'APPROVED') {
           await api.transactions.success({
             email: profile.user.email,
