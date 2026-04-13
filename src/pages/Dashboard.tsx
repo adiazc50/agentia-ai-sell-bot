@@ -636,14 +636,6 @@ const Dashboard = () => {
         currency: currencyCode
       });
 
-      // Create pending transaction
-      await api.transactions.createPending({
-        reference: reference,
-        plan_name: pendingPlanName,
-        amount: pendingPaymentAmount,
-        currency: currencyCode,
-      });
-
       const checkout = new (window as any).WidgetCheckout({
         currency: currencyCode,
         amountInCents: priceInCents,
@@ -661,13 +653,20 @@ const Dashboard = () => {
         const transaction = result.transaction;
         console.log('Transaction result:', transaction);
 
-        // Update transaction status via API
-        await api.transactions.update({
-          reference: reference,
-          status: transaction.status,
-          wompi_transaction_id: transaction.id,
-          payment_method: transaction.paymentMethod?.type,
-        });
+        // Create transaction only after Wompi responds
+        if (transaction.status === 'APPROVED') {
+          await api.transactions.success({
+            email: profile.user.email,
+            plan_name: pendingPlanName,
+            ai_responses_included: 0,
+            amount: pendingPaymentAmount,
+            currency: currencyCode,
+            reference: reference,
+            transaction_id: transaction.id,
+            payment_method: transaction.paymentMethod?.type || 'CARD',
+            transaction_date: new Date().toISOString(),
+          });
+        }
 
         if (transaction.status === 'APPROVED') {
           toast({
@@ -1392,7 +1391,7 @@ const Dashboard = () => {
                                   </td>
                                   <td className="py-3 px-4 capitalize">{tx.plan_name}</td>
                                   <td className="py-3 px-4">
-                                    ${tx.amount.toLocaleString("es-CO")} {tx.currency}
+                                    ${Number(tx.amount).toLocaleString("es-CO")} {tx.currency}
                                   </td>
                                   <td className="py-3 px-4">
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -1417,7 +1416,7 @@ const Dashboard = () => {
                             <span className="text-xl font-bold text-green-400">
                               ${selectedMonthTransactions
                                 .filter(tx => tx.status === "APPROVED")
-                                .reduce((sum, tx) => sum + tx.amount, 0)
+                                .reduce((sum, tx) => sum + Number(tx.amount), 0)
                                 .toLocaleString("es-CO")} COP
                             </span>
                           </div>
@@ -1530,7 +1529,7 @@ const Dashboard = () => {
                             </td>
                             <td className="py-3 px-4 capitalize">{tx.plan_name}</td>
                             <td className="py-3 px-4">
-                              ${tx.amount.toLocaleString("es-CO")} {tx.currency}
+                              ${Number(tx.amount).toLocaleString("es-CO")} {tx.currency}
                             </td>
                             <td className="py-3 px-4">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -1558,7 +1557,7 @@ const Dashboard = () => {
                       <span className="text-xl font-bold text-green-400">
                         ${filteredTransactions
                           .filter(tx => tx.status === "APPROVED")
-                          .reduce((sum, tx) => sum + tx.amount, 0)
+                          .reduce((sum, tx) => sum + Number(tx.amount), 0)
                           .toLocaleString("es-CO")} COP
                       </span>
                     </div>
