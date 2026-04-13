@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 
 type Currency = 'COP' | 'USD';
 
@@ -104,11 +104,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   const fetchExchangeRate = async () => {
     setLoadingRate(true);
     try {
-      const { data, error } = await supabase.functions.invoke('get-trm');
-
-      if (error) {
-        throw error;
-      }
+      const data = await api.trm.latest();
 
       if (!data?.rate || !data?.rateWithCommission) {
         throw new Error('Respuesta TRM inválida');

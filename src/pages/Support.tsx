@@ -6,14 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Bot, LogOut, Search, HelpCircle, MessageSquare, User } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api, isAuthenticated, getUser, logout as apiLogout } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
 interface SupportTicket {
   id: string;
-  user_id: string;
+  id_user: string;
+  id_company: string;
   subject: string;
   description: string;
   status: string;
@@ -23,12 +24,9 @@ interface SupportTicket {
 }
 
 interface Profile {
-  user_id: string;
+  id: number;
+  name: string;
   email: string;
-  first_name: string | null;
-  last_name: string | null;
-  company_name: string | null;
-  account_type: "persona" | "empresa";
 }
 
 interface TicketMessage {
@@ -48,7 +46,7 @@ const Support = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [searchTicket, setSearchTicket] = useState("");
   const [filterTicketStatus, setFilterTicketStatus] = useState<string>("all");
-  
+
   // Ticket messaging state
   const [viewTicketModal, setViewTicketModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
@@ -58,111 +56,86 @@ const Support = () => {
 
   useEffect(() => {
     const checkSupport = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      if (!isAuthenticated()) {
         navigate("/auth");
         return;
       }
 
-      // Check if user has support role
-      const { data: role } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .eq("role", "support")
-        .maybeSingle();
+      const user = getUser();
+      if (!user) {
+        navigate("/auth");
+        return;
+      }
 
-      if (!role) {
-        // Check if admin
-        const { data: adminRole } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id)
-          .eq("role", "admin")
-          .maybeSingle();
-
-        if (adminRole) {
-          navigate("/admin");
-        } else {
+      // The role check is now handled by the backend via the token.
+      // If the user doesn't have the right role, the API calls will fail with 403.
+      // We attempt to load data; if it fails, redirect accordingly.
+      try {
+        await loadData();
+        setLoading(false);
+      } catch (err: any) {
+        if (err?.status === 403) {
           navigate("/dashboard");
         }
         return;
       }
-
-      await loadData();
-      setLoading(false);
-
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-        if (event === "SIGNED_OUT") {
-          navigate("/");
-        }
-      });
-
-      return () => subscription.unsubscribe();
     };
 
     checkSupport();
   }, [navigate]);
 
   const loadData = async () => {
-    const [ticketsRes, profilesRes] = await Promise.all([
-      supabase.from("support_tickets").select("*").order("created_at", { ascending: false }),
-      supabase.from("profiles").select("user_id, email, first_name, last_name, company_name, account_type")
+    const [ticketsData, profileData] = await Promise.all([
+      api.tickets.list(),
+      api.profile.get()
     ]);
 
-    setTickets((ticketsRes.data as SupportTicket[]) || []);
-    setProfiles((profilesRes.data as Profile[]) || []);
+    setTickets((ticketsData as SupportTicket[]) || []);
+    // The profile endpoint returns { user, company, roleConversia }.
+    // Extract the user object and store as array for getProfileInfo lookups.
+    if (profileData?.user) {
+      setProfiles([profileData.user as Profile]);
+    } else if (Array.isArray(profileData)) {
+      setProfiles(profileData);
+    } else {
+      setProfiles([profileData]);
+    }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut({ scope: 'local' });
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
-        localStorage.removeItem(key);
-      }
-    });
-    navigate("/", { replace: true });
+  const handleLogout = () => {
+    apiLogout();
   };
 
   const getProfileInfo = (userId: string) => {
-    const profile = profiles.find(p => p.user_id === userId);
+    const profile = profiles.find(p => String(p.id) === String(userId));
     if (!profile) return { name: "Usuario desconocido", email: "" };
-    
-    const name = profile.account_type === "empresa" 
-      ? profile.company_name || "Empresa"
-      : `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Usuario";
-    
-    return { name, email: profile.email };
+
+    return { name: profile.name || "Usuario", email: profile.email };
   };
 
   const handleUpdateTicketStatus = async (ticketId: string, newStatus: string) => {
-    const { error } = await supabase
-      .from("support_tickets")
-      .update({ status: newStatus })
-      .eq("id", ticketId);
+    try {
+      await api.tickets.updateStatus({ idTicket: ticketId, status: newStatus });
 
-    if (error) {
+      setTickets(tickets.map(t =>
+        t.id === ticketId ? { ...t, status: newStatus } : t
+      ));
+
+      toast({
+        title: "Ticket actualizado",
+        description: `Estado cambiado a ${newStatus}.`,
+      });
+
+      // Update selectedTicket if it's the same ticket
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket({ ...selectedTicket, status: newStatus });
+      }
+    } catch (err) {
       toast({
         title: "Error",
         description: "No se pudo actualizar el estado del ticket.",
         variant: "destructive",
       });
-      return;
-    }
-
-    setTickets(tickets.map(t => 
-      t.id === ticketId ? { ...t, status: newStatus } : t
-    ));
-
-    toast({
-      title: "Ticket actualizado",
-      description: `Estado cambiado a ${newStatus}.`,
-    });
-    
-    // Update selectedTicket if it's the same ticket
-    if (selectedTicket?.id === ticketId) {
-      setSelectedTicket({ ...selectedTicket, status: newStatus });
     }
   };
 
@@ -170,61 +143,52 @@ const Support = () => {
     setSelectedTicket(ticket);
     setViewTicketModal(true);
     setLoadingMessages(true);
-    
-    const { data: messages } = await supabase
-      .from("ticket_messages")
-      .select("*")
-      .eq("ticket_id", ticket.id)
-      .order("created_at", { ascending: true });
 
-    setTicketMessages((messages as TicketMessage[]) || []);
+    try {
+      const messages = await api.tickets.messages(Number(ticket.id));
+      setTicketMessages((messages as TicketMessage[]) || []);
+    } catch {
+      setTicketMessages([]);
+    }
     setLoadingMessages(false);
   };
 
   const handleSendSupportMessage = async () => {
     if (!selectedTicket || !newMessage.trim() || selectedTicket.status === "closed") return;
 
-    const { data: session } = await supabase.auth.getSession();
-    if (!session.session) return;
+    const user = getUser();
+    if (!user) return;
 
-    const { error } = await supabase
-      .from("ticket_messages")
-      .insert({
-        ticket_id: selectedTicket.id,
-        user_id: session.session.user.id,
+    try {
+      await api.tickets.sendMessage({
+        idTicket: selectedTicket.id,
         message: newMessage.trim(),
-        is_from_support: true
+        isFromSupport: true
       });
 
-    if (error) {
+      setNewMessage("");
+      // Refresh messages
+      const messages = await api.tickets.messages(Number(selectedTicket.id));
+      setTicketMessages((messages as TicketMessage[]) || []);
+    } catch {
       toast({
         title: "Error",
         description: "No se pudo enviar el mensaje",
         variant: "destructive"
       });
-    } else {
-      setNewMessage("");
-      // Refresh messages
-      const { data: messages } = await supabase
-        .from("ticket_messages")
-        .select("*")
-        .eq("ticket_id", selectedTicket.id)
-        .order("created_at", { ascending: true });
-
-      setTicketMessages((messages as TicketMessage[]) || []);
     }
   };
 
   const filteredTickets = useMemo(() => {
     return tickets.filter(ticket => {
-      const profileInfo = getProfileInfo(ticket.user_id);
-      const matchesSearch = searchTicket === "" || 
+      const profileInfo = getProfileInfo(ticket.id_user);
+      const matchesSearch = searchTicket === "" ||
         ticket.subject.toLowerCase().includes(searchTicket.toLowerCase()) ||
         profileInfo.name.toLowerCase().includes(searchTicket.toLowerCase()) ||
         profileInfo.email.toLowerCase().includes(searchTicket.toLowerCase());
-      
+
       const matchesStatus = filterTicketStatus === "all" || ticket.status === filterTicketStatus;
-      
+
       return matchesSearch && matchesStatus;
     });
   }, [tickets, searchTicket, filterTicketStatus, profiles]);
@@ -352,10 +316,10 @@ const Support = () => {
                 </thead>
                 <tbody>
                   {filteredTickets.map((ticket) => {
-                    const profileInfo = getProfileInfo(ticket.user_id);
+                    const profileInfo = getProfileInfo(ticket.id_user);
                     return (
-                      <tr 
-                        key={ticket.id} 
+                      <tr
+                        key={ticket.id}
                         className="border-b border-border/50 hover:bg-secondary/50 cursor-pointer"
                         onClick={() => handleOpenTicket(ticket)}
                       >
@@ -431,13 +395,13 @@ const Support = () => {
               {selectedTicket?.subject}
             </DialogTitle>
           </DialogHeader>
-          
+
           {selectedTicket && (
             <div className="space-y-4">
               {/* User info */}
               <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Usuario: {getProfileInfo(selectedTicket.user_id).name}</p>
-                <p className="text-sm text-muted-foreground">Email: {getProfileInfo(selectedTicket.user_id).email}</p>
+                <p className="text-sm text-muted-foreground">Usuario: {getProfileInfo(selectedTicket.id_user).name}</p>
+                <p className="text-sm text-muted-foreground">Email: {getProfileInfo(selectedTicket.id_user).email}</p>
                 <p className="text-sm text-muted-foreground">
                   Estado: <span className={getStatusColor(selectedTicket.status)}>{getStatusLabel(selectedTicket.status)}</span>
                 </p>
@@ -460,8 +424,8 @@ const Support = () => {
                     <div
                       key={msg.id}
                       className={`p-3 rounded-lg ${
-                        msg.is_from_support 
-                          ? "bg-primary/10 ml-4" 
+                        msg.is_from_support
+                          ? "bg-primary/10 ml-4"
                           : "bg-secondary mr-4"
                       }`}
                     >

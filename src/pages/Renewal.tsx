@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Bot, Search, CreditCard, AlertCircle, CheckCircle, ArrowLeft, Loader2, RefreshCw, Zap, Star, Crown, Rocket, Check, Info, Gift } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/contexts/CurrencyContext";
 
@@ -147,13 +147,7 @@ const Renewal = () => {
     setSelectedPlan(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("search-by-document", {
-        body: { document: document.trim() },
-      });
-
-      if (error) {
-        throw error;
-      }
+      const data = await api.payments.searchByDocument({ document: document.trim() });
 
       setSearched(true);
 
@@ -193,7 +187,7 @@ const Renewal = () => {
 
     try {
       const { planName, amount } = pendingPayment;
-      
+
       // Always charge in COP, but show user their selected currency
       const priceInCents = amount * 100;
       const reference = `renewal-${planName.toLowerCase()}-${Date.now()}`;
@@ -201,31 +195,22 @@ const Renewal = () => {
 
       console.log("Requesting signature for renewal:", { reference, amountInCents: priceInCents, currency: currencyCode });
 
-      const { data: signatureData, error: signatureError } = await supabase.functions.invoke("wompi-signature", {
-        body: {
-          reference,
-          amountInCents: priceInCents,
-          currency: currencyCode,
-        },
+      const signatureData = await api.payments.wompiSignature({
+        reference,
+        amountInCents: priceInCents,
+        currency: currencyCode,
       });
-
-      if (signatureError) {
-        console.error("Error getting signature:", signatureError);
-        throw new Error("Error al procesar el pago");
-      }
 
       console.log("Signature received:", signatureData);
 
-      const { error: txError } = await supabase.functions.invoke("renewal-payment", {
-        body: {
+      try {
+        await api.payments.renewalPayment({
           document: document.trim(),
           reference,
           planName,
           amount,
-        },
-      });
-
-      if (txError) {
+        });
+      } catch (txError) {
         console.error("Error creating transaction:", txError);
       }
 
@@ -246,14 +231,12 @@ const Renewal = () => {
         const transaction = result.transaction;
         console.log("Transaction result:", transaction);
 
-        await supabase.functions.invoke("renewal-payment", {
-          body: {
-            document: document.trim(),
-            reference: reference,
-            status: transaction.status,
-            wompiTransactionId: transaction.id,
-            paymentMethod: transaction.paymentMethod?.type,
-          },
+        await api.payments.renewalPayment({
+          document: document.trim(),
+          reference: reference,
+          status: transaction.status,
+          wompiTransactionId: transaction.id,
+          paymentMethod: transaction.paymentMethod?.type,
         });
 
         if (transaction.status === "APPROVED") {
@@ -339,7 +322,7 @@ const Renewal = () => {
               {showAllPlans ? "Seleccionar Nuevo Plan" : "Renovar Mensualidad"}
             </CardTitle>
             <CardDescription>
-              {showAllPlans 
+              {showAllPlans
                 ? `${planInfo?.userName} - Elige el plan que mejor se adapte a tus necesidades`
                 : "Ingresa tu número de documento para consultar tu plan"
               }
@@ -676,7 +659,7 @@ const Renewal = () => {
               Confirmar Pago
             </DialogTitle>
           </DialogHeader>
-          
+
           {pendingPayment && (
             <div className="space-y-4">
               <div className="bg-secondary/50 rounded-lg p-4 space-y-3">
@@ -688,7 +671,7 @@ const Renewal = () => {
                   <span className="text-muted-foreground">Monto en COP:</span>
                   <span className="font-medium">${pendingPayment.amount.toLocaleString("es-CO")} COP</span>
                 </div>
-                
+
                 {currency === 'USD' && exchangeRate && (
                   <>
                     <div className="border-t border-border pt-3 space-y-2">
@@ -714,7 +697,7 @@ const Renewal = () => {
                   </>
                 )}
               </div>
-              
+
               <DialogFooter className="gap-2">
                 <Button variant="outline" onClick={() => setConfirmPaymentModal(false)}>
                   Cancelar

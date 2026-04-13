@@ -11,7 +11,7 @@ import { MessageCircle, Instagram, Send, Music, Globe } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { supabase } from "@/integrations/supabase/client";
+import { isAuthenticated, logout as apiLogout, getUser } from "@/lib/api";
 import { LogIn, UserPlus, LogOut, User } from "lucide-react";
 
 const linkBase =
@@ -27,16 +27,12 @@ const platformLinks: { label: string; href: string; icon: React.ElementType; col
 
 const Navbar: React.FC = () => {
   const { t } = useLanguage();
-  const [userId, setUserId] = useState<string | null>(null);
+  const [loggedIn, setLoggedIn] = useState<boolean>(isAuthenticated());
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserId(session?.user?.id || null);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user?.id || null);
-    });
-    return () => subscription.unsubscribe();
+    const onStorage = () => setLoggedIn(isAuthenticated());
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   return (
@@ -157,7 +153,7 @@ const Navbar: React.FC = () => {
 
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
-          {userId ? (
+          {loggedIn ? (
             <>
               <Button variant="ghost" size="sm" asChild>
                 <a href="/dashboard" title={t("nav.myAccount")}>
@@ -168,7 +164,7 @@ const Navbar: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={async () => { await supabase.auth.signOut(); window.location.href = "/"; }}
+                onClick={() => apiLogout()}
               >
                 <LogOut className="w-4 h-4 mr-1" />
                 {t("nav.logout")}

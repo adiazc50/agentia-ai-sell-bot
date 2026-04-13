@@ -11,7 +11,7 @@ import { Bot, ArrowLeft, Eye, EyeOff, Mail, Lock, User, Building2, Phone, MapPin
 import CountrySelect from "@/components/CountrySelect";
 import logoSoyAgentia from "@/assets/logo-soyagentia.jpeg";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { api, isAuthenticated, getUser } from "@/lib/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -64,9 +64,6 @@ const Auth = () => {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [pendingEvent, setPendingEvent] = useState<React.FormEvent | null>(null);
-  const [needsProfile, setNeedsProfile] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const { toast } = useToast();
@@ -116,90 +113,32 @@ const Auth = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (session?.user) {
-          setCurrentUserId(session.user.id);
-          setTimeout(() => {
-            checkProfileAndRedirect(session.user.id, session.user.email || "");
-          }, 0);
-        } else {
-          setCurrentUserId(null);
-          setNeedsProfile(false);
-        }
+    if (isAuthenticated()) {
+      const user = getUser();
+      if (user?.roleConversia === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
       }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setCurrentUserId(session.user.id);
-        checkProfileAndRedirect(session.user.id, session.user.email || "");
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    }
   }, [navigate]);
-
-  const checkProfileAndRedirect = async (userId: string, email: string) => {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (!profile) {
-      // User is authenticated but has no profile - show profile completion form
-      setNeedsProfile(true);
-      setIsLogin(false);
-      // Pre-fill email
-      setPersonaData(prev => ({ ...prev, email }));
-      setEmpresaData(prev => ({ ...prev, email }));
-      return;
-    }
-
-    // Check if user is admin
-    const { data: role } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    if (role) {
-      navigate("/admin");
-    } else {
-      navigate("/dashboard");
-    }
-  };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/reset-password`;
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: redirectUrl,
+      await api.auth.resetPassword(forgotEmail);
+      setForgotSent(true);
+      toast({
+        title: "Correo enviado",
+        description:
+          "Si existe una cuenta con ese correo, recibirás un enlace para restablecer tu contraseña.",
       });
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        setForgotSent(true);
-        toast({
-          title: "Correo enviado",
-          description:
-            "Si existe una cuenta con ese correo, recibirás un enlace para restablecer tu contraseña.",
-        });
-      }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Ocurrió un error inesperado. Intenta de nuevo.",
+        description: error?.message || "Ocurrió un error inesperado. Intenta de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -212,44 +151,39 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { error, data } = await supabase.auth.signInWithPassword({
-        email: loginData.email,
-        password: loginData.password,
+      const { user } = await api.auth.login(loginData.email, loginData.password);
+
+      toast({
+        title: "¡Bienvenido!",
+        description: "Has iniciado sesión correctamente.",
       });
 
-      if (error) {
-        const msg = error.message?.toLowerCase?.() ?? "";
-        if (msg.includes("email") && msg.includes("confirm")) {
-          toast({
-            title: "Verifica tu correo",
-            description: "Tu cuenta aún no está verificada.",
-            variant: "destructive",
-          });
-        } else if (error.message === "Invalid login credentials") {
-          toast({
-            title: "Error de autenticación",
-            description: "Correo o contraseña incorrectos.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
+      if (user?.roleConversia === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (error: any) {
+      const msg = (error?.message || "").toLowerCase();
+      if (msg.includes("email") && msg.includes("confirm")) {
+        toast({
+          title: "Verifica tu correo",
+          description: "Tu cuenta aún no está verificada.",
+          variant: "destructive",
+        });
+      } else if (msg.includes("invalid") || msg.includes("credentials") || msg.includes("incorrect")) {
+        toast({
+          title: "Error de autenticación",
+          description: "Correo o contraseña incorrectos.",
+          variant: "destructive",
+        });
       } else {
         toast({
-          title: "¡Bienvenido!",
-          description: "Has iniciado sesión correctamente.",
+          title: "Error",
+          description: error?.message || "Ocurrió un error inesperado. Intenta de nuevo.",
+          variant: "destructive",
         });
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Ocurrió un error inesperado. Intenta de nuevo.",
-        variant: "destructive",
-      });
     } finally {
       setIsLoading(false);
     }
@@ -257,7 +191,6 @@ const Auth = () => {
 
   const handleShowConfirmation = (e: React.FormEvent) => {
     e.preventDefault();
-    setPendingEvent(e);
     setShowConfirmModal(true);
   };
 
@@ -267,192 +200,60 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const email = accountType === "persona" ? personaData.email : empresaData.email;
-      const password = accountType === "persona" ? personaData.password : empresaData.password;
-
-      // Check if this is the first user (for admin assignment)
-      const { data: isFirst } = await supabase.rpc("is_first_user");
-
-      let userId = currentUserId;
-
-      // If user is already authenticated (needsProfile = true), skip signup
-      if (!needsProfile) {
-        const redirectUrl = `${window.location.origin}/`;
-        const { error, data } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: redirectUrl,
-          },
-        });
-
-        if (error) {
-          if (error.message.includes("already registered")) {
-            toast({
-              title: "Usuario existente",
-              description: "Este correo ya está registrado. Intenta iniciar sesión.",
-              variant: "destructive",
-            });
-            setIsLogin(true);
-          } else {
-            toast({
-              title: "Error",
-              description: error.message,
-              variant: "destructive",
-            });
-          }
-          return;
-        }
-
-        userId = data.user?.id || null;
-      }
-
-      if (!userId) {
-        toast({
-          title: "Error",
-          description: "No se pudo obtener el usuario.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Create profile
-      const now = new Date().toISOString();
-      const profileData = accountType === "persona" 
+      const registerData = accountType === "persona"
         ? {
-            user_id: userId,
-            account_type: "persona" as const,
-            email: personaData.email || email,
-            phone: personaData.phone || null,
-            document_type: personaData.documentType || null,
-            document_number: personaData.documentNumber || null,
-            country: personaData.country || null,
-            address: personaData.address || null,
-            city: personaData.city || null,
-            first_name: personaData.firstName,
-            last_name: personaData.lastName,
-            second_name: personaData.secondName || null,
-            second_last_name: personaData.secondLastName || null,
-            terms_accepted_at: now,
-            privacy_accepted_at: now,
+            accountType: "persona" as const,
+            firstName: personaData.firstName,
+            secondName: personaData.secondName || undefined,
+            lastName: personaData.lastName,
+            secondLastName: personaData.secondLastName || undefined,
+            documentType: personaData.documentType,
+            documentNumber: personaData.documentNumber,
+            email: personaData.email,
+            phone: personaData.phone || undefined,
+            country: personaData.country || undefined,
+            address: personaData.address || undefined,
+            city: personaData.city || undefined,
+            password: personaData.password,
           }
         : {
-            user_id: userId,
-            account_type: "empresa" as const,
-            email: empresaData.email || email,
-            phone: empresaData.phone || null,
-            country: empresaData.country || null,
-            address: empresaData.address || null,
-            city: empresaData.city || null,
-            company_name: empresaData.companyName,
-            nit: empresaData.nit || null,
-            contact_name: empresaData.contactName || null,
-            terms_accepted_at: now,
-            privacy_accepted_at: now,
+            accountType: "empresa" as const,
+            companyName: empresaData.companyName,
+            nit: empresaData.nit || undefined,
+            contactName: empresaData.contactName || undefined,
+            email: empresaData.email,
+            phone: empresaData.phone || undefined,
+            country: empresaData.country || undefined,
+            address: empresaData.address || undefined,
+            city: empresaData.city || undefined,
+            password: empresaData.password,
           };
 
-      const { error: profileError } = await supabase.from("profiles").insert(profileData);
+      await api.auth.register(registerData);
 
-      if (profileError) {
-        console.error("Profile creation error:", profileError);
+      toast({
+        title: "¡Cuenta creada!",
+        description: "Tu cuenta ha sido creada exitosamente.",
+      });
+
+      navigate("/dashboard");
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      const msg = error?.message || "";
+      if (msg.includes("already registered") || msg.includes("ya registrado") || msg.includes("already exists")) {
         toast({
-          title: "Error",
-          description: "Error al crear el perfil. Contacta a soporte.",
+          title: "Usuario existente",
+          description: "Este correo ya está registrado. Intenta iniciar sesión.",
           variant: "destructive",
         });
-        return;
-      }
-
-      // Send registration webhook POST
-      try {
-        const webhookPayload = accountType === "persona"
-          ? {
-              event: "user_registered",
-              account_type: "persona",
-              user_id: userId,
-              first_name: personaData.firstName,
-              second_name: personaData.secondName || null,
-              last_name: personaData.lastName,
-              second_last_name: personaData.secondLastName || null,
-              document_type: personaData.documentType,
-              document_number: personaData.documentNumber,
-              email: personaData.email || email,
-              phone: personaData.phone || null,
-              country: personaData.country || null,
-              address: personaData.address || null,
-              city: personaData.city || null,
-              registered_at: new Date().toISOString(),
-            }
-          : {
-              event: "user_registered",
-              account_type: "empresa",
-              user_id: userId,
-              company_name: empresaData.companyName,
-              nit: empresaData.nit || null,
-              nit_verification_digit: empresaData.nit ? calcularDigitoVerificacion(empresaData.nit) : null,
-              contact_name: empresaData.contactName || null,
-              email: empresaData.email || email,
-              phone: empresaData.phone || null,
-              country: empresaData.country || null,
-              address: empresaData.address || null,
-              city: empresaData.city || null,
-              registered_at: new Date().toISOString(),
-            };
-
-        const { data: webhookResponse, error: webhookError2 } = await supabase.functions.invoke('register-webhook', {
-          body: webhookPayload,
-        });
-
-        console.log("Registration webhook response:", webhookResponse);
-
-        console.log("Registration webhook sent:", webhookPayload);
-      } catch (webhookError) {
-        // No bloquear el registro si el webhook falla
-        console.error("Registration webhook error:", webhookError);
-      }
-
-      // If first user, assign admin role
-      if (isFirst) {
-        const { error: roleError } = await supabase.from("user_roles").insert({
-          user_id: userId,
-          role: "admin",
-        });
-
-        if (roleError) {
-          console.error("Role assignment error:", roleError);
-        } else {
-          toast({
-            title: "¡Eres administrador!",
-            description: "Como primer usuario, tienes acceso de administrador.",
-          });
-        }
+        setIsLogin(true);
       } else {
-        // Assign default user role
-        await supabase.from("user_roles").insert({
-          user_id: userId,
-          role: "user",
+        toast({
+          title: "Error",
+          description: msg || "Ocurrió un error inesperado. Intenta de nuevo.",
+          variant: "destructive",
         });
       }
-
-      toast({
-        title: needsProfile ? "¡Perfil completado!" : "¡Cuenta creada!",
-        description: needsProfile ? "Tu perfil ha sido completado." : "Tu cuenta ha sido creada exitosamente.",
-      });
-
-      // Redirect after profile creation
-      setNeedsProfile(false);
-      if (isFirst) {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
-    } catch (error) {
-      console.error("Registration error:", error);
-      toast({
-        title: "Error",
-        description: "Ocurrió un error inesperado. Intenta de nuevo.",
-        variant: "destructive",
-      });
     } finally {
       setIsLoading(false);
     }
@@ -597,18 +398,14 @@ const Auth = () => {
           <h1 className="text-3xl font-bold mb-2">
             {isLogin
               ? t("auth.welcomeBack")
-              : needsProfile
-                ? t("auth.completeProfile")
-                : t("auth.createAccount")}
+              : t("auth.createAccount")}
           </h1>
           <p className="text-muted-foreground mb-8">
             {isLogin
               ? t("auth.loginSubtitle")
-              : needsProfile
-                ? t("auth.profileSubtitle")
-                : selectedPlan
-                  ? `${t("auth.signupPlanPrefix")} ${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}`
-                  : t("auth.signupSubtitle")}
+              : selectedPlan
+                ? `${t("auth.signupPlanPrefix")} ${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}`
+                : t("auth.signupSubtitle")}
           </p>
 
           {isLogin ? (
@@ -773,23 +570,21 @@ const Auth = () => {
                     </div>
                   </div>
 
-                  {!needsProfile && (
-                    <div className="space-y-2">
-                      <Label htmlFor="personaEmail">Correo electrónico *</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <Input
-                          id="personaEmail"
-                          type="email"
-                          placeholder="tu@email.com"
-                          value={personaData.email}
-                          onChange={(e) => setPersonaData({ ...personaData, email: e.target.value })}
-                          className="pl-10 h-12 bg-secondary border-border"
-                          required
-                        />
-                      </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="personaEmail">Correo electrónico *</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <Input
+                        id="personaEmail"
+                        type="email"
+                        placeholder="tu@email.com"
+                        value={personaData.email}
+                        onChange={(e) => setPersonaData({ ...personaData, email: e.target.value })}
+                        className="pl-10 h-12 bg-secondary border-border"
+                        required
+                      />
                     </div>
-                  )}
+                  </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="personaPhone">Teléfono</Label>
@@ -838,31 +633,29 @@ const Auth = () => {
                     </div>
                   </div>
 
-                  {!needsProfile && (
-                    <div className="space-y-2">
-                      <Label htmlFor="personaPassword">Contraseña *</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <Input
-                          id="personaPassword"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="••••••••"
-                          value={personaData.password}
-                          onChange={(e) => setPersonaData({ ...personaData, password: e.target.value })}
-                          className="pl-10 pr-10 h-12 bg-secondary border-border"
-                          required
-                          minLength={6}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </button>
-                      </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="personaPassword">Contraseña *</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <Input
+                        id="personaPassword"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={personaData.password}
+                        onChange={(e) => setPersonaData({ ...personaData, password: e.target.value })}
+                        className="pl-10 pr-10 h-12 bg-secondary border-border"
+                        required
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
                     </div>
-                  )}
+                  </div>
                 </>
               ) : (
                 <>
@@ -923,23 +716,21 @@ const Auth = () => {
                     </div>
                   </div>
 
-                  {!needsProfile && (
-                    <div className="space-y-2">
-                      <Label htmlFor="empresaEmail">Correo electrónico *</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <Input
-                          id="empresaEmail"
-                          type="email"
-                          placeholder="contacto@empresa.com"
-                          value={empresaData.email}
-                          onChange={(e) => setEmpresaData({ ...empresaData, email: e.target.value })}
-                          className="pl-10 h-12 bg-secondary border-border"
-                          required
-                        />
-                      </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="empresaEmail">Correo electrónico *</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <Input
+                        id="empresaEmail"
+                        type="email"
+                        placeholder="contacto@empresa.com"
+                        value={empresaData.email}
+                        onChange={(e) => setEmpresaData({ ...empresaData, email: e.target.value })}
+                        className="pl-10 h-12 bg-secondary border-border"
+                        required
+                      />
                     </div>
-                  )}
+                  </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="empresaPhone">Teléfono *</Label>
@@ -994,31 +785,29 @@ const Auth = () => {
                     </div>
                   </div>
 
-                  {!needsProfile && (
-                    <div className="space-y-2">
-                      <Label htmlFor="empresaPassword">Contraseña *</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <Input
-                          id="empresaPassword"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="••••••••"
-                          value={empresaData.password}
-                          onChange={(e) => setEmpresaData({ ...empresaData, password: e.target.value })}
-                          className="pl-10 pr-10 h-12 bg-secondary border-border"
-                          required
-                          minLength={6}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </button>
-                      </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="empresaPassword">Contraseña *</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <Input
+                        id="empresaPassword"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={empresaData.password}
+                        onChange={(e) => setEmpresaData({ ...empresaData, password: e.target.value })}
+                        className="pl-10 pr-10 h-12 bg-secondary border-border"
+                        required
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
                     </div>
-                  )}
+                  </div>
                 </>
               )}
 
@@ -1046,24 +835,22 @@ const Auth = () => {
 
               <Button type="submit" variant="hero" size="lg" className="w-full" disabled={isLoading || !acceptedTerms}>
                 {isLoading 
-                  ? (needsProfile ? "Completando perfil..." : "Creando cuenta...") 
-                  : (needsProfile ? "Completar Perfil" : "Crear Cuenta")}
+                  ? "Creando cuenta..."
+                  : "Crear Cuenta"}
               </Button>
             </form>
           )}
 
-          {!needsProfile && (
-            <p className="text-center text-muted-foreground mt-8">
-              {isLogin ? "¿No tienes cuenta?" : "¿Ya tienes cuenta?"}{" "}
-              <button
-                type="button"
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-primary font-medium hover:underline"
-              >
-                {isLogin ? "Regístrate" : "Inicia sesión"}
-              </button>
-            </p>
-          )}
+          <p className="text-center text-muted-foreground mt-8">
+            {isLogin ? "¿No tienes cuenta?" : "¿Ya tienes cuenta?"}{" "}
+            <button
+              type="button"
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-primary font-medium hover:underline"
+            >
+              {isLogin ? "Regístrate" : "Inicia sesión"}
+            </button>
+          </p>
         </motion.div>
       </div>
 

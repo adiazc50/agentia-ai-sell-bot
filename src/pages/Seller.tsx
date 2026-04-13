@@ -7,46 +7,44 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Bot, LogOut, Users, CreditCard, Search, Plus, User, Building2,
+import {
+  Bot, LogOut, Users, CreditCard, Search, Plus, User,
   CheckCircle, XCircle, Clock, DollarSign, TrendingUp, Eye, RefreshCw
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api, isAuthenticated, getUser, logout as apiLogout } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 
 interface Profile {
-  id: string;
-  user_id: string;
-  account_type: "persona" | "empresa";
+  id: number;
+  name: string;
   email: string;
-  phone: string | null;
-  city: string | null;
-  first_name: string | null;
-  last_name: string | null;
+  phone: number | null;
+  id_company: number | null;
   company_name: string | null;
-  nit: string | null;
-  seller_id: string | null;
-  assigned_plan: string | null;
   created_at: string;
 }
 
 interface Transaction {
   id: string;
-  user_id: string;
+  id_company: number;
+  email: string;
   reference: string;
   plan_name: string;
   amount: number;
   currency: string;
-  status: string;
+  transaction_id: string | null;
+  payment_method: string | null;
+  transaction_date: string | null;
   created_at: string;
 }
 
 interface Commission {
   id: string;
-  transaction_id: string;
-  user_id: string;
+  id_seller: number;
+  id_user: number;
+  id_transaction: number;
   plan_name: string;
   plan_type: string;
   transaction_amount: number;
@@ -56,15 +54,8 @@ interface Commission {
   status: string;
   created_at: string;
   paid_at: string | null;
+  notes: string | null;
 }
-
-// Prices in USD/month (annual = monthly * 0.85 * 12)
-const PLANS = [
-  { id: "mini", name: "Mini", mensajes: 500, precioUSD: 29.9 },
-  { id: "basico", name: "Básico", mensajes: 1100, precioUSD: 59.9 },
-  { id: "plus", name: "Plus", mensajes: 3500, precioUSD: 99.9 },
-  { id: "enterprise", name: "Enterprise", mensajes: 7500, precioUSD: 210 },
-];
 
 const Seller = () => {
   const navigate = useNavigate();
@@ -80,14 +71,8 @@ const Seller = () => {
   const [newUser, setNewUser] = useState({
     email: "",
     password: "",
-    account_type: "persona" as "persona" | "empresa",
-    first_name: "",
-    last_name: "",
-    company_name: "",
-    nit: "",
-    phone: "",
-    city: "",
-    assigned_plan: "basico"
+    name: "",
+    phone: ""
   });
   const [creatingUser, setCreatingUser] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -96,90 +81,61 @@ const Seller = () => {
 
   useEffect(() => {
     const checkSeller = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      if (!isAuthenticated()) {
         navigate("/auth");
         return;
       }
 
-      setCurrentUserId(session.user.id);
-
-      // Check if user has vendedor role
-      const { data: role } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .eq("role", "vendedor")
-        .maybeSingle();
-
-      if (!role) {
-        // Check if admin
-        const { data: adminRole } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id)
-          .eq("role", "admin")
-          .maybeSingle();
-
-        if (adminRole) {
-          navigate("/admin");
-        } else {
-          navigate("/dashboard");
-        }
+      const user = getUser();
+      if (!user) {
+        navigate("/auth");
         return;
       }
 
+      setCurrentUserId(user.id || "");
+
       // Sync commissions on page load
-      await syncCommissions();
+      try {
+        await syncCommissions();
+      } catch {
+        // If sync fails (e.g. 403), redirect
+        navigate("/dashboard");
+        return;
+      }
       setLoading(false);
-
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-        if (event === "SIGNED_OUT") {
-          navigate("/");
-        }
-      });
-
-      return () => subscription.unsubscribe();
     };
 
     checkSeller();
   }, [navigate]);
 
-  const loadData = async (sellerId: string) => {
-    const [profilesRes, transactionsRes, commissionsRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("seller_id", sellerId).order("created_at", { ascending: false }),
-      supabase.from("transactions").select("*").order("created_at", { ascending: false }),
-      supabase.from("seller_commissions").select("*").eq("seller_id", sellerId).order("created_at", { ascending: false })
+  const loadData = async () => {
+    const [profileData, transactionsData, commissionsData] = await Promise.all([
+      api.profile.get(),
+      api.transactions.list(),
+      api.commissions.list()
     ]);
 
-    setProfiles((profilesRes.data as Profile[]) || []);
-    setTransactions((transactionsRes.data as Transaction[]) || []);
-    setCommissions((commissionsRes.data as Commission[]) || []);
+    // The profile endpoint may return the seller's clients list or a single profile.
+    // Adapt based on what the backend returns.
+    setProfiles(Array.isArray(profileData) ? profileData : (profileData?.clients || []));
+    setTransactions(Array.isArray(transactionsData) ? transactionsData : (transactionsData?.data || []));
+    setCommissions(Array.isArray(commissionsData) ? commissionsData : (commissionsData?.data || []));
   };
 
   const syncCommissions = async () => {
     setSyncing(true);
     try {
-      const { error } = await supabase.functions.invoke('calculate-commissions');
-      
-      if (error) {
-        toast({
-          title: "Error",
-          description: "No se pudieron sincronizar las comisiones.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Sincronizado",
-          description: "Las comisiones han sido calculadas.",
-        });
-        await loadData(currentUserId);
-      }
+      await api.payments.calculateCommissions();
+
+      toast({
+        title: "Sincronizado",
+        description: "Las comisiones han sido calculadas.",
+      });
+      await loadData();
     } catch (err) {
       toast({
         title: "Error",
-        description: "Error de conexión al sincronizar.",
+        description: "No se pudieron sincronizar las comisiones.",
         variant: "destructive",
       });
     } finally {
@@ -187,14 +143,8 @@ const Seller = () => {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut({ scope: 'local' });
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
-        localStorage.removeItem(key);
-      }
-    });
-    navigate("/", { replace: true });
+  const handleLogout = () => {
+    apiLogout();
   };
 
   const handleCreateUser = async () => {
@@ -207,19 +157,10 @@ const Seller = () => {
       return;
     }
 
-    if (newUser.account_type === "persona" && (!newUser.first_name || !newUser.last_name)) {
+    if (!newUser.name) {
       toast({
         title: "Error",
-        description: "Nombre y apellido son requeridos para persona.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (newUser.account_type === "empresa" && (!newUser.company_name || !newUser.nit)) {
-      toast({
-        title: "Error",
-        description: "Nombre de empresa y NIT son requeridos.",
+        description: "El nombre es requerido.",
         variant: "destructive",
       });
       return;
@@ -228,42 +169,19 @@ const Seller = () => {
     setCreatingUser(true);
 
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Register the user via the API (creates auth user + profile)
+      const authData = await api.auth.register({
         email: newUser.email,
         password: newUser.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`
-        }
+        name: newUser.name,
+        phone: newUser.phone || null,
+        sellerId: currentUserId
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("No se pudo crear el usuario");
-
-      // Create profile with seller_id assigned
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert({
-          user_id: authData.user.id,
-          email: newUser.email,
-          account_type: newUser.account_type,
-          first_name: newUser.account_type === "persona" ? newUser.first_name : null,
-          last_name: newUser.account_type === "persona" ? newUser.last_name : null,
-          company_name: newUser.account_type === "empresa" ? newUser.company_name : null,
-          nit: newUser.account_type === "empresa" ? newUser.nit : null,
-          phone: newUser.phone || null,
-          city: newUser.city || null,
-          seller_id: currentUserId,
-          assigned_plan: newUser.assigned_plan
-        });
-
-      if (profileError) throw profileError;
-
-      // Create user role
-      await supabase.from("user_roles").insert({
-        user_id: authData.user.id,
-        role: "user"
-      });
+      // Assign user role
+      if (authData?.user?.id) {
+        await api.roles.assign(authData.user.id, 1); // 1 = user role
+      }
 
       toast({
         title: "Usuario creado",
@@ -274,17 +192,11 @@ const Seller = () => {
       setNewUser({
         email: "",
         password: "",
-        account_type: "persona",
-        first_name: "",
-        last_name: "",
-        company_name: "",
-        nit: "",
-        phone: "",
-        city: "",
-        assigned_plan: "basico"
+        name: "",
+        phone: ""
       });
 
-      await loadData(currentUserId);
+      await loadData();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -298,40 +210,38 @@ const Seller = () => {
 
   const filteredProfiles = useMemo(() => {
     return profiles.filter(profile => {
-      const name = profile.account_type === "empresa" 
-        ? profile.company_name 
-        : `${profile.first_name} ${profile.last_name}`;
-      return name?.toLowerCase().includes(searchUser.toLowerCase()) ||
+      return profile.name?.toLowerCase().includes(searchUser.toLowerCase()) ||
         profile.email.toLowerCase().includes(searchUser.toLowerCase());
     });
   }, [profiles, searchUser]);
 
   const getUserTransactions = (userId: string) => {
+    // All logged transactions are implicitly approved (no status field in MySQL)
     return transactions
-      .filter(t => t.user_id === userId && t.status === "APPROVED")
+      .filter(t => String(t.id_company) === String(userId) || t.email === profiles.find(p => String(p.id) === String(userId))?.email)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   };
 
   const getMonthlyPayments = (userId: string) => {
     const userTx = getUserTransactions(userId);
     const months: { month: string; paid: boolean; amount: number }[] = [];
-    
+
     for (let i = 0; i < 12; i++) {
       const monthDate = subMonths(new Date(), i);
       const monthStart = startOfMonth(monthDate);
       const monthEnd = endOfMonth(monthDate);
-      
-      const payment = userTx.find(tx => 
+
+      const payment = userTx.find(tx =>
         isWithinInterval(new Date(tx.created_at), { start: monthStart, end: monthEnd })
       );
-      
+
       months.push({
         month: format(monthDate, "MMM yyyy", { locale: es }),
         paid: !!payment,
         amount: payment?.amount || 0
       });
     }
-    
+
     return months;
   };
 
@@ -424,7 +334,7 @@ const Seller = () => {
                 <CreditCard className="w-8 h-8 text-green-400" />
                 <div>
                   <p className="text-muted-foreground text-sm">Transacciones</p>
-                  <p className="text-2xl font-bold text-foreground">{transactions.filter(t => t.status === "APPROVED").length}</p>
+                  <p className="text-2xl font-bold text-foreground">{transactions.length}</p>
                 </div>
               </div>
             </div>
@@ -484,10 +394,8 @@ const Seller = () => {
                     <thead>
                       <tr className="border-b border-border">
                         <th className="text-left py-3 px-4 text-muted-foreground font-medium">Nombre</th>
-                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Tipo</th>
                         <th className="text-left py-3 px-4 text-muted-foreground font-medium">Email</th>
                         <th className="text-left py-3 px-4 text-muted-foreground font-medium">Plan Asignado</th>
-                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Ciudad</th>
                         <th className="text-left py-3 px-4 text-muted-foreground font-medium">Registro</th>
                         <th className="text-left py-3 px-4 text-muted-foreground font-medium">Acciones</th>
                       </tr>
@@ -497,26 +405,18 @@ const Seller = () => {
                         <tr key={profile.id} className="border-b border-border/50 hover:bg-secondary/50">
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
-                              {profile.account_type === "empresa" ? (
-                                <Building2 className="w-4 h-4 text-primary" />
-                              ) : (
-                                <User className="w-4 h-4 text-primary" />
-                              )}
+                              <User className="w-4 h-4 text-primary" />
                               <span className="text-foreground">
-                                {profile.account_type === "empresa" 
-                                  ? profile.company_name 
-                                  : `${profile.first_name} ${profile.last_name}`}
+                                {profile.name || "Usuario"}
                               </span>
                             </div>
                           </td>
-                          <td className="py-3 px-4 capitalize text-foreground">{profile.account_type}</td>
                           <td className="py-3 px-4 text-foreground">{profile.email}</td>
                           <td className="py-3 px-4">
                             <span className="bg-primary/20 text-primary px-2 py-1 rounded text-sm capitalize">
-                              {profile.assigned_plan || "Sin asignar"}
+                              N/A
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-foreground">{profile.city || "-"}</td>
                           <td className="py-3 px-4 text-foreground">
                             {format(new Date(profile.created_at), "dd/MM/yyyy", { locale: es })}
                           </td>
@@ -553,9 +453,9 @@ const Seller = () => {
                     <DollarSign className="w-5 h-5 text-primary" />
                     Historial de Comisiones
                   </h3>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={syncCommissions}
                     disabled={syncing}
                     className="gap-2"
@@ -670,64 +570,17 @@ const Seller = () => {
               Crear Nuevo Cliente
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <Label className="text-foreground">Tipo de Cuenta</Label>
-                <Select
-                  value={newUser.account_type}
-                  onValueChange={(value: "persona" | "empresa") => setNewUser({ ...newUser, account_type: value })}
-                >
-                  <SelectTrigger className="bg-secondary border-border mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="persona">Persona</SelectItem>
-                    <SelectItem value="empresa">Empresa</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-foreground">Nombre *</Label>
+                <Input
+                  value={newUser.name}
+                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                  className="bg-secondary border-border mt-1"
+                />
               </div>
-
-              {newUser.account_type === "persona" ? (
-                <>
-                  <div>
-                    <Label className="text-foreground">Nombre *</Label>
-                    <Input
-                      value={newUser.first_name}
-                      onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })}
-                      className="bg-secondary border-border mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-foreground">Apellido *</Label>
-                    <Input
-                      value={newUser.last_name}
-                      onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })}
-                      className="bg-secondary border-border mt-1"
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <Label className="text-foreground">Nombre de Empresa *</Label>
-                    <Input
-                      value={newUser.company_name}
-                      onChange={(e) => setNewUser({ ...newUser, company_name: e.target.value })}
-                      className="bg-secondary border-border mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-foreground">NIT *</Label>
-                    <Input
-                      value={newUser.nit}
-                      onChange={(e) => setNewUser({ ...newUser, nit: e.target.value })}
-                      className="bg-secondary border-border mt-1"
-                    />
-                  </div>
-                </>
-              )}
 
               <div className="col-span-2">
                 <Label className="text-foreground">Email *</Label>
@@ -749,7 +602,7 @@ const Seller = () => {
                 />
               </div>
 
-              <div>
+              <div className="col-span-2">
                 <Label className="text-foreground">Teléfono</Label>
                 <Input
                   value={newUser.phone}
@@ -758,33 +611,6 @@ const Seller = () => {
                 />
               </div>
 
-              <div>
-                <Label className="text-foreground">Ciudad</Label>
-                <Input
-                  value={newUser.city}
-                  onChange={(e) => setNewUser({ ...newUser, city: e.target.value })}
-                  className="bg-secondary border-border mt-1"
-                />
-              </div>
-
-              <div className="col-span-2">
-                <Label className="text-foreground">Plan Asignado *</Label>
-                <Select
-                  value={newUser.assigned_plan}
-                  onValueChange={(value) => setNewUser({ ...newUser, assigned_plan: value })}
-                >
-                  <SelectTrigger className="bg-secondary border-border mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PLANS.map((plan) => (
-                      <SelectItem key={plan.id} value={plan.id}>
-                        {plan.name} - {plan.mensajes} mensajes - ${plan.precioUSD} USD/mes
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
@@ -804,20 +630,18 @@ const Seller = () => {
         <DialogContent className="bg-card border-border max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              Historial de Pagos - {historyModal.profile?.account_type === "empresa" 
-                ? historyModal.profile?.company_name 
-                : `${historyModal.profile?.first_name} ${historyModal.profile?.last_name}`}
+              Historial de Pagos - {historyModal.profile?.name || "Usuario"}
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="py-4">
             <div className="grid grid-cols-3 gap-2">
-              {historyModal.profile && getMonthlyPayments(historyModal.profile.user_id).map((month, idx) => (
+              {historyModal.profile && getMonthlyPayments(String(historyModal.profile.id)).map((month, idx) => (
                 <div
                   key={idx}
                   className={`p-3 rounded-lg text-center ${
-                    month.paid 
-                      ? "bg-green-500/20 border border-green-500/50" 
+                    month.paid
+                      ? "bg-green-500/20 border border-green-500/50"
                       : "bg-red-500/20 border border-red-500/50"
                   }`}
                 >

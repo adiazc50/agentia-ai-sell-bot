@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Check, Zap, Star, Crown, Rocket, Loader2, Settings2, ShieldCheck, MessageCircle, Gift } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api, isAuthenticated, getUser } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -208,9 +208,10 @@ const PricingSection = () => {
   const [userTransactions, setUserTransactions] = useState<any[]>([]);
 
   // Check if user already purchased Plan Test
+  // All logged transactions are implicitly approved (no status field in MySQL)
   const hasPurchasedPlanTest = useMemo(() => {
     return userTransactions.some(
-      (tx) => tx.plan_name?.toLowerCase().includes('plan test') && tx.status === 'APPROVED'
+      (tx) => tx.plan_name?.toLowerCase().includes('plan test')
     );
   }, [userTransactions]);
 
@@ -315,33 +316,39 @@ const PricingSection = () => {
     script.async = true;
     document.body.appendChild(script);
 
-    const loadUserData = async (uid: string) => {
-      const [profileRes, txRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('user_id', uid).maybeSingle(),
-        supabase.from('transactions').select('plan_name, status').eq('user_id', uid),
-      ]);
-      if (profileRes.data) setUserProfile(profileRes.data);
-      if (txRes.data) setUserTransactions(txRes.data);
+    const loadUserData = async () => {
+      try {
+        const [profileRes, transactions] = await Promise.all([
+          api.profile.get(),
+          api.transactions.list(),
+        ]);
+        // Backend returns { user, company, roleConversia }
+        if (profileRes) {
+          const merged = {
+            ...profileRes.user,
+            company_name: profileRes.company?.name || null,
+            nit: profileRes.company?.nit || null,
+          };
+          setUserProfile(merged);
+        }
+        if (transactions) setUserTransactions(transactions);
+      } catch (err) {
+        console.error('Error loading user data:', err);
+      }
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserId(session?.user?.id || null);
-      if (session?.user?.id) loadUserData(session.user.id);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUserId(session?.user?.id || null);
-      if (session?.user?.id) {
-        loadUserData(session.user.id);
-      } else {
-        setUserProfile(null);
-        setUserTransactions([]);
-      }
-    });
+    if (isAuthenticated()) {
+      const user = getUser();
+      setUserId(user?.id || user?.idUser || null);
+      loadUserData();
+    } else {
+      setUserId(null);
+      setUserProfile(null);
+      setUserTransactions([]);
+    }
 
     return () => {
       document.body.removeChild(script);
-      subscription.unsubscribe();
     };
   }, []);
 
@@ -380,14 +387,10 @@ const PricingSection = () => {
       const reference = `plan-${plan.name.toLowerCase()}-${billingPeriod}-${Date.now()}`;
       const currencyCode = 'COP';
 
-      const { data, error } = await supabase.functions.invoke('wompi-signature', {
-        body: { reference, amountInCents: priceInCents, currency: currencyCode },
-      });
+      const data = await api.payments.wompiSignature({ reference, amountInCents: priceInCents, currency: currencyCode });
 
-      if (error) throw new Error('Error al procesar el pago');
-
-      await supabase.from("transactions").insert({
-        user_id: userId,
+      await api.transactions.success({
+        email: userProfile?.email || "",
         reference,
         plan_name: plan.name + planSuffix,
         amount: totalPriceCOP,
@@ -399,19 +402,15 @@ const PricingSection = () => {
       const customerData: Record<string, string> = {};
       if (userProfile) {
         customerData.email = userProfile.email;
-        customerData.fullName = userProfile.account_type === 'empresa'
-          ? (userProfile.company_name || '')
-          : `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim();
+        customerData.fullName = userProfile.name || '';
         if (userProfile.phone) {
-          let cleanPhone = userProfile.phone.replace(/\D/g, '');
+          let cleanPhone = String(userProfile.phone).replace(/\D/g, '');
           if (cleanPhone.startsWith('57') && cleanPhone.length > 10) {
             cleanPhone = cleanPhone.substring(2);
           }
           customerData.phoneNumber = cleanPhone;
           customerData.phoneNumberPrefix = '57';
         }
-        if (userProfile.document_number) customerData.legalId = userProfile.document_number;
-        if (userProfile.document_type) customerData.legalIdType = userProfile.document_type;
       }
 
       const checkout = new (window as any).WidgetCheckout({
@@ -426,36 +425,30 @@ const PricingSection = () => {
 
       checkout.open(async (result: any) => {
         const transaction = result.transaction;
-        await supabase
-          .from("transactions")
-          .update({ 
-            status: transaction.status,
-            wompi_transaction_id: transaction.id,
-            payment_method: transaction.paymentMethod?.type,
-          })
-          .eq("reference", reference);
-        
+        await api.transactions.success({
+          reference,
+          status: transaction.status,
+          wompi_transaction_id: transaction.id,
+          payment_method: transaction.paymentMethod?.type,
+        });
+
         if (transaction.status === 'APPROVED') {
           toast({ title: "¡Pago exitoso!", description: `Tu plan ${plan.name} ha sido activado.` });
-          
+
           try {
-            const { data: sigData } = await supabase.functions.invoke('wompi-signature', {
-              body: { reference: 'temp', amountInCents: 100, currency: 'COP' },
-            });
+            const sigData = await api.payments.wompiSignature({ reference: 'temp', amountInCents: 100, currency: 'COP' });
             const tokenCheckout = new (window as any).WidgetCheckout({
               publicKey: sigData.publicKey,
               widgetOperation: 'tokenize',
             });
             tokenCheckout.open(async (tokenResult: any) => {
               if (tokenResult.token && tokenResult.token.id) {
-                await supabase.functions.invoke('tokenize-card', {
-                  body: {
-                    card_token: tokenResult.token.id,
-                    plan_name: plan.name + planSuffix,
-                    amount: totalPriceCOP,
-                    currency: 'COP',
-                    billing_period: billingPeriod,
-                  },
+                await api.payments.tokenizeCard({
+                  card_token: tokenResult.token.id,
+                  plan_name: plan.name + planSuffix,
+                  amount: totalPriceCOP,
+                  currency: 'COP',
+                  billing_period: billingPeriod,
                 });
                 toast({ title: "Cobro automático activado", description: "Tu tarjeta fue guardada para renovación automática." });
               }
@@ -495,18 +488,15 @@ const PricingSection = () => {
       const discountedMonthly = Math.round(monthlyUSD * (1 - discount) * 100) / 100;
       const totalUSD = Math.round(discountedMonthly * months * 100) / 100;
 
-      const { data, error } = await supabase.functions.invoke('paypal-create-subscription', {
-        body: {
-          plan_name: plan.name,
-          billing_period: billingPeriod,
-          amount_usd: discountedMonthly,
-          user_id: userId,
-          return_url: `${window.location.origin}/dashboard?paypal=success`,
-          cancel_url: `${window.location.origin}/dashboard?paypal=cancelled`,
-        },
+      const data = await api.payments.paypalCreateSubscription({
+        plan_name: plan.name,
+        billing_period: billingPeriod,
+        amount_usd: discountedMonthly,
+        email: userProfile?.email || "",
+        return_url: `${window.location.origin}/dashboard?paypal=success`,
+        cancel_url: `${window.location.origin}/dashboard?paypal=cancelled`,
       });
 
-      if (error) throw new Error('Error al crear suscripción PayPal');
       if (!data?.approval_url) throw new Error('No se recibió URL de aprobación');
 
       // Open PayPal in a new tab (works inside iframes)

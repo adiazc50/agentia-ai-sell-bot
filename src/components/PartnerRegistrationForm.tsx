@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Handshake, ArrowRight, Eye, EyeOff, Loader2, CheckCircle2, User, Building2, Phone, MapPin, Mail, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -101,116 +101,93 @@ const PartnerRegistrationForm = () => {
       const email = accountType === "persona" ? personaData.email : empresaData.email;
       const password = accountType === "persona" ? personaData.password : empresaData.password;
 
-      // 1. Create auth account
-      const { error: signUpError, data: signUpData } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: `${window.location.origin}/` },
-      });
+      // 1. Register user (backend handles profile creation + webhook)
+      const now = new Date().toISOString();
+      const registerData = accountType === "persona"
+        ? {
+            accountType: "persona",
+            firstName: personaData.firstName,
+            secondName: personaData.secondName || null,
+            lastName: personaData.lastName,
+            secondLastName: personaData.secondLastName || null,
+            documentType: personaData.documentType,
+            documentNumber: personaData.documentNumber,
+            email: personaData.email,
+            phone: personaData.phone || null,
+            address: personaData.address || null,
+            city: personaData.city || null,
+            password,
+            assignedPlan: PARTNER_PLAN_NAME,
+            termsAcceptedAt: now,
+            privacyAcceptedAt: now,
+          }
+        : {
+            accountType: "empresa",
+            companyName: empresaData.companyName,
+            nit: empresaData.nit || null,
+            nitVerificationDigit: empresaData.nit ? calcularDigitoVerificacion(empresaData.nit) : null,
+            contactName: empresaData.contactName || null,
+            email: empresaData.email,
+            phone: empresaData.phone || null,
+            address: empresaData.address || null,
+            city: empresaData.city || null,
+            password,
+            assignedPlan: PARTNER_PLAN_NAME,
+            termsAcceptedAt: now,
+            privacyAcceptedAt: now,
+          };
 
-      if (signUpError) {
-        if (signUpError.message.includes("already registered")) {
+      let registerResult: any;
+      try {
+        registerResult = await api.auth.register(registerData);
+      } catch (err: any) {
+        if (err?.message?.includes("already registered") || err?.statusCode === 409) {
           toast({ title: t('partner.userExists'), description: t('partner.userExistsMsg'), variant: "destructive" });
         } else {
-          toast({ title: "Error", description: signUpError.message, variant: "destructive" });
+          toast({ title: "Error", description: err?.message || "Error al crear el usuario.", variant: "destructive" });
         }
         return;
       }
 
-      const userId = signUpData.user?.id;
+      const userId = registerResult?.user?.id || registerResult?.userId;
       if (!userId) {
         toast({ title: "Error", description: "No se pudo crear el usuario.", variant: "destructive" });
         return;
       }
 
-      // 2. Create profile
-      const now = new Date().toISOString();
-      const profileData = accountType === "persona"
-        ? {
-            user_id: userId, account_type: "persona" as const,
-            email: personaData.email, phone: personaData.phone || null,
-            document_type: personaData.documentType || null,
-            document_number: personaData.documentNumber || null,
-            address: personaData.address || null, city: personaData.city || null,
-            first_name: personaData.firstName, last_name: personaData.lastName,
-            second_name: personaData.secondName || null,
-            second_last_name: personaData.secondLastName || null,
-            assigned_plan: PARTNER_PLAN_NAME,
-            terms_accepted_at: now, privacy_accepted_at: now,
-          }
-        : {
-            user_id: userId, account_type: "empresa" as const,
-            email: empresaData.email, phone: empresaData.phone || null,
-            address: empresaData.address || null, city: empresaData.city || null,
-            company_name: empresaData.companyName, nit: empresaData.nit || null,
-            contact_name: empresaData.contactName || null,
-            assigned_plan: PARTNER_PLAN_NAME,
-            terms_accepted_at: now, privacy_accepted_at: now,
-          };
-
-      const { error: profileError } = await supabase.from("profiles").insert(profileData);
-      if (profileError) {
-        console.error("Profile error:", profileError);
-        toast({ title: "Error", description: "Error al crear el perfil.", variant: "destructive" });
-        return;
-      }
-
-      // 3. Assign vendedor role
-      await supabase.from("user_roles").insert({ user_id: userId, role: "vendedor" });
-
-      // 4. Send registration webhook
+      // 2. Assign vendedor role (roleId 5)
       try {
-        const webhookPayload = accountType === "persona"
-          ? {
-              event: "user_registered", account_type: "persona", user_id: userId,
-              first_name: personaData.firstName, second_name: personaData.secondName || null,
-              last_name: personaData.lastName, second_last_name: personaData.secondLastName || null,
-              document_type: personaData.documentType, document_number: personaData.documentNumber,
-              email: personaData.email, phone: personaData.phone || null,
-              address: personaData.address || null, city: personaData.city || null,
-              registered_at: now,
-            }
-          : {
-              event: "user_registered", account_type: "empresa", user_id: userId,
-              company_name: empresaData.companyName, nit: empresaData.nit || null,
-              nit_verification_digit: empresaData.nit ? calcularDigitoVerificacion(empresaData.nit) : null,
-              contact_name: empresaData.contactName || null,
-              email: empresaData.email, phone: empresaData.phone || null,
-              address: empresaData.address || null, city: empresaData.city || null,
-              registered_at: now,
-            };
-        await supabase.functions.invoke('register-webhook', { body: webhookPayload });
+        await api.roles.assign(userId, 5);
       } catch (e) {
-        console.error("Webhook error:", e);
+        console.error("Role assignment error:", e);
       }
 
-      // 5. Initiate Wompi payment
-      const reference = `partner-ready-${userId.slice(0, 8)}-${Date.now()}`;
+      // 3. Initiate Wompi payment
+      const reference = `partner-ready-${String(userId).slice(0, 8)}-${Date.now()}`;
       const amountInCents = PARTNER_AMOUNT_COP * 100;
 
-      const { data: signatureData, error: signatureError } = await supabase.functions.invoke("wompi-signature", {
-        body: { reference, amountInCents, currency: "COP" },
-      });
-
-      if (signatureError) {
-        console.error("Signature error:", signatureError);
+      let signatureData: any;
+      try {
+        signatureData = await api.payments.wompiSignature({ reference, amountInCents, currency: "COP" });
+      } catch (e) {
+        console.error("Signature error:", e);
         toast({ title: "Error", description: "Error al preparar el pago.", variant: "destructive" });
         return;
       }
 
       // Create transaction record
-      const { error: txError } = await supabase.from("transactions").insert({
-        user_id: userId,
-        reference,
-        plan_name: PARTNER_PLAN_NAME,
-        amount: PARTNER_AMOUNT_COP,
-        currency: "COP",
-        status: "PENDING",
-        payment_gateway: "wompi",
-      });
-
-      if (txError) {
-        console.error("Transaction creation error:", txError);
+      try {
+        await api.transactions.success({
+          userId,
+          reference,
+          planName: PARTNER_PLAN_NAME,
+          amount: PARTNER_AMOUNT_COP,
+          currency: "COP",
+          status: "PENDING",
+          paymentGateway: "wompi",
+        });
+      } catch (e) {
+        console.error("Transaction creation error:", e);
       }
 
       const customerName = accountType === "persona"
@@ -243,18 +220,16 @@ const PartnerRegistrationForm = () => {
       checkout.open(async (result: any) => {
         const transaction = result.transaction;
         if (transaction) {
-          // Update transaction status
+          // Update transaction status via API
           try {
-            await supabase.functions.invoke("payment-webhook", {
-              body: {
-                reference,
-                status: transaction.status,
-                wompiTransactionId: transaction.id,
-                paymentMethod: transaction.paymentMethodType || null,
-              },
+            await api.transactions.success({
+              reference,
+              status: transaction.status,
+              wompiTransactionId: transaction.id,
+              paymentMethod: transaction.paymentMethodType || null,
             });
           } catch (e) {
-            console.error("Payment webhook error:", e);
+            console.error("Payment update error:", e);
           }
 
           if (transaction.status === "APPROVED") {

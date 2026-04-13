@@ -11,52 +11,56 @@ import FinancialDashboard from "@/components/FinancialDashboard";
 import PaymentMethodSelector from "@/components/PaymentMethodSelector";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { api, isAuthenticated, getUser, logout as apiLogout } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { differenceInDays, startOfMonth, endOfMonth, format, isBefore, addDays, parseISO, subMonths, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { differenceInDays, startOfMonth, endOfMonth, format, isBefore, addDays, addMonths, parseISO, subMonths, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 
 interface Profile {
-  id: string;
-  user_id: string;
-  account_type: "persona" | "empresa";
+  id: number;
+  name: string;
   email: string;
   phone: string | null;
   city: string | null;
   address: string | null;
-  first_name: string | null;
-  last_name: string | null;
   company_name: string | null;
-  nit: string | null;
-  contact_name: string | null;
-  document_type: string | null;
-  document_number: string | null;
+  company_status: string | null;
+  role_conversia: string | null;
+  id_company: number | null;
+  id_role: number | null;
+  status: string | null;
   created_at: string;
-  subscription_start_date: string | null;
-  seller_id: string | null;
-  assigned_plan: string | null;
+  entry_date: string | null;
+  last_plan_name: string | null;
+  last_amount: number | null;
+  last_currency: string | null;
+  last_payment_date: string | null;
 }
 
 interface UserRole {
-  user_id: string;
+  id_user: number;
   role: "admin" | "moderator" | "user" | "support" | "vendedor";
 }
 
 interface Transaction {
   id: string;
-  user_id: string;
+  email: string;
+  id_company: number | null;
   reference: string;
   plan_name: string;
+  ai_responses_included: number | null;
   amount: number;
   currency: string;
-  status: string;
+  transaction_id: string | null;
+  payment_method: string | null;
+  transaction_date: string | null;
+  status?: string;
   created_at: string;
-  profiles?: Profile;
 }
 
 interface SupportTicket {
   id: string;
-  user_id: string;
+  id_user: number;
   subject: string;
   description: string;
   status: string;
@@ -67,8 +71,8 @@ interface SupportTicket {
 
 interface TicketMessage {
   id: string;
-  ticket_id: string;
-  user_id: string;
+  id_ticket: number;
+  id_user: number;
   message: string;
   is_from_support: boolean;
   created_at: string;
@@ -76,9 +80,9 @@ interface TicketMessage {
 
 interface SellerCommission {
   id: string;
-  seller_id: string;
-  transaction_id: string;
-  user_id: string;
+  id_seller: number;
+  id_transaction: number;
+  id_user: number;
   plan_name: string;
   plan_type: string;
   transaction_amount: number;
@@ -129,11 +133,11 @@ const Admin = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterTicketStatus, setFilterTicketStatus] = useState<string>("all");
   const [historyModal, setHistoryModal] = useState<{ open: boolean; profile: Profile | null }>({ open: false, profile: null });
-  const [editingStartDate, setEditingStartDate] = useState<string | null>(null);
+  const [editingStartDate, setEditingStartDate] = useState<number | null>(null);
   const [tempStartDate, setTempStartDate] = useState<string>("");
   const [newPaymentModal, setNewPaymentModal] = useState(false);
   const [newPayment, setNewPayment] = useState({
-    user_id: "",
+    email: "",
     plan_name: "mensual",
     package_name: "basico",
     amount: 150000,
@@ -148,7 +152,7 @@ const Admin = () => {
   const [cancellingCommission, setCancellingCommission] = useState<string | null>(null);
   const [subscriptionFilterYear, setSubscriptionFilterYear] = useState<string>(new Date().getFullYear().toString());
   const [subscriptionFilterMonth, setSubscriptionFilterMonth] = useState<string>("all");
-  const [paySellerModal, setPaySellerModal] = useState<{ open: boolean; sellerId: string | null; sellerName: string; pendingAmount: number; pendingCommissions: SellerCommission[] }>({
+  const [paySellerModal, setPaySellerModal] = useState<{ open: boolean; sellerId: number | null; sellerName: string; pendingAmount: number; pendingCommissions: SellerCommission[] }>({
     open: false,
     sellerId: null,
     sellerName: "",
@@ -158,7 +162,7 @@ const Admin = () => {
   const [payingSeller, setPayingSeller] = useState(false);
   const [newCommissionModal, setNewCommissionModal] = useState(false);
   const [newCommission, setNewCommission] = useState({
-    seller_id: "",
+    id_seller: "",
     plan_name: "",
     plan_type: "mensual",
     transaction_amount: 0,
@@ -220,14 +224,10 @@ const Admin = () => {
       const reference = `admin-${adminPaymentPlan.package}-${adminPaymentPlan.period}-${Date.now()}`;
       const priceInCents = cop * 100;
 
-      const { data: signatureData, error: signatureError } = await supabase.functions.invoke('wompi-signature', {
-        body: { reference, amountInCents: priceInCents, currency: 'COP' },
-      });
+      const signatureData = await api.payments.wompiSignature({ reference, amountInCents: priceInCents, currency: 'COP' });
 
-      if (signatureError) throw new Error('Error al obtener firma');
-
-      await supabase.from("transactions").insert({
-        user_id: targetProfile.user_id,
+      await api.admin.createTransaction({
+        email: targetProfile.email,
         reference,
         plan_name: planName,
         amount: cop,
@@ -244,17 +244,13 @@ const Admin = () => {
         redirectUrl: `${window.location.origin}/admin`,
         customerData: {
           email: targetProfile.email,
-          fullName: targetProfile.account_type === "empresa"
-            ? targetProfile.company_name
-            : `${targetProfile.first_name} ${targetProfile.last_name}`,
+          fullName: targetProfile.name || targetProfile.company_name || targetProfile.email,
         },
       });
 
       checkout.open(async (result: any) => {
         const transaction = result.transaction;
-        await supabase.from("transactions")
-          .update({ status: transaction.status, wompi_transaction_id: transaction.id, payment_method: transaction.paymentMethod?.type })
-          .eq("reference", reference);
+        await api.admin.updateTransaction(reference, { status: transaction.status, wompi_transaction_id: transaction.id, payment_method: transaction.paymentMethod?.type });
 
         if (transaction.status === 'APPROVED') {
           toast({ title: "¡Pago exitoso!", description: `Plan ${planName} procesado correctamente.` });
@@ -285,18 +281,15 @@ const Admin = () => {
       const discountedMonthly = Math.round(monthlyUSD * (1 - discount) * 100) / 100;
       const basePlanName = adminPaymentPlan.package.charAt(0).toUpperCase() + adminPaymentPlan.package.slice(1);
 
-      const { data, error } = await supabase.functions.invoke('paypal-create-subscription', {
-        body: {
-          plan_name: basePlanName,
-          billing_period: adminPaymentPlan.period,
-          amount_usd: discountedMonthly,
-          user_id: targetProfile.user_id,
-          return_url: `${window.location.origin}/admin?paypal=success`,
-          cancel_url: `${window.location.origin}/admin?paypal=cancelled`,
-        },
+      const data = await api.payments.paypalCreateSubscription({
+        plan_name: basePlanName,
+        billing_period: adminPaymentPlan.period,
+        amount_usd: discountedMonthly,
+        email: targetProfile.email,
+        return_url: `${window.location.origin}/admin?paypal=success`,
+        cancel_url: `${window.location.origin}/admin?paypal=cancelled`,
       });
 
-      if (error) throw new Error('Error al crear suscripción PayPal');
       if (!data?.approval_url) throw new Error('No se recibió URL de aprobación');
 
       window.open(data.approval_url, '_blank');
@@ -314,12 +307,7 @@ const Admin = () => {
   const handleRunRecurringPayments = async () => {
     setRunningCronJob(true);
     try {
-      const { data, error } = await supabase.functions.invoke('process-recurring-payments', {
-        method: 'POST',
-        body: { time: new Date().toISOString() },
-      });
-
-      if (error) throw error;
+      const data = await api.payments.processRecurringPayments();
 
       toast({
         title: "Débitos procesados",
@@ -327,7 +315,7 @@ const Admin = () => {
       });
 
       // Refresh data
-      const { data: txData } = await supabase.from("transactions").select("*").order("created_at", { ascending: false });
+      const txData = await api.admin.transactions();
       if (txData) setTransactions(txData);
     } catch (err: any) {
       console.error('Error running recurring payments:', err);
@@ -351,13 +339,7 @@ const Admin = () => {
   // User profile edit modal state
   const [userDetailModal, setUserDetailModal] = useState<{ open: boolean; profile: Profile | null }>({ open: false, profile: null });
   const [editingUserForm, setEditingUserForm] = useState({
-    first_name: "",
-    last_name: "",
-    company_name: "",
-    contact_name: "",
-    nit: "",
-    document_type: "",
-    document_number: "",
+    name: "",
     phone: "",
     city: "",
     address: "",
@@ -376,21 +358,13 @@ const Admin = () => {
 
   useEffect(() => {
     const checkAdmin = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      if (!isAuthenticated()) {
         navigate("/auth");
         return;
       }
 
-      const { data: role } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      if (!role) {
+      const user = getUser();
+      if (!user || user.roleConversia !== "admin") {
         toast({
           title: "Acceso denegado",
           description: "No tienes permisos de administrador.",
@@ -405,75 +379,37 @@ const Admin = () => {
     };
 
     checkAdmin();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") {
-        navigate("/auth");
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, [navigate, toast]);
 
   const loadData = async () => {
-    // Load profiles
-    const { data: profilesData } = await supabase
-      .from("profiles")
-      .select("*")
-      .order("created_at", { ascending: false });
-    
-    setProfiles((profilesData as Profile[]) || []);
+    try {
+      const [profilesData, rolesData, txData, ticketData, commissionsData] = await Promise.all([
+        api.admin.profiles(),
+        api.admin.roles(),
+        api.admin.transactions(),
+        api.admin.tickets(),
+        api.admin.commissions(),
+      ]);
 
-    // Load roles
-    const { data: rolesData } = await supabase
-      .from("user_roles")
-      .select("user_id, role");
-    
-    setUserRoles((rolesData as UserRole[]) || []);
-
-    // Load transactions with user info
-    const { data: txData } = await supabase
-      .from("transactions")
-      .select("*")
-      .order("created_at", { ascending: false });
-    
-    setTransactions((txData as Transaction[]) || []);
-
-    // Load all support tickets (admin can see all)
-    const { data: ticketData } = await supabase
-      .from("support_tickets")
-      .select("*")
-      .order("created_at", { ascending: false });
-    
-    setTickets((ticketData as SupportTicket[]) || []);
-
-    // Load all seller commissions
-    const { data: commissionsData } = await supabase
-      .from("seller_commissions")
-      .select("*")
-      .order("created_at", { ascending: false });
-    
-    setCommissions((commissionsData as SellerCommission[]) || []);
+      setProfiles((profilesData as Profile[]) || []);
+      setUserRoles((rolesData as UserRole[]) || []);
+      setTransactions((txData as Transaction[]) || []);
+      setTickets((ticketData as SupportTicket[]) || []);
+      setCommissions((commissionsData as SellerCommission[]) || []);
+    } catch (err) {
+      console.error("Error loading admin data:", err);
+    }
   };
 
   const syncCommissions = async () => {
     setSyncingCommissions(true);
     try {
-      const { error } = await supabase.functions.invoke('calculate-commissions');
-      
-      if (error) {
-        toast({
-          title: "Error",
-          description: "No se pudieron sincronizar las comisiones.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Sincronizado",
-          description: "Las comisiones han sido calculadas.",
-        });
-        await loadData();
-      }
+      await api.payments.calculateCommissions();
+      toast({
+        title: "Sincronizado",
+        description: "Las comisiones han sido calculadas.",
+      });
+      await loadData();
     } catch (err) {
       toast({
         title: "Error",
@@ -485,119 +421,80 @@ const Admin = () => {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut({ scope: 'local' });
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
-        localStorage.removeItem(key);
-      }
-    });
-    navigate("/", { replace: true });
+  const handleLogout = () => {
+    apiLogout();
   };
 
-  const getUserRole = (userId: string): string => {
-    const role = userRoles.find(r => r.user_id === userId);
-    return role?.role || "user";
+  const getUserRole = (userId: number): string => {
+    const profile = profiles.find(p => p.id === userId);
+    return profile?.role_conversia || "user";
   };
 
-  const handleRoleChange = async (userId: string, newRole: "admin" | "moderator" | "user" | "support" | "vendedor") => {
-    const existingRole = userRoles.find(r => r.user_id === userId);
+  const roleNameToId: Record<string, number> = { admin: 1, moderator: 2, user: 3, support: 4, vendedor: 5 };
 
-    if (existingRole) {
-      const { error } = await supabase
-        .from("user_roles")
-        .update({ role: newRole })
-        .eq("user_id", userId);
+  const handleRoleChange = async (userId: number, newRole: "admin" | "moderator" | "user" | "support" | "vendedor") => {
+    try {
+      await api.admin.updateRole({ idUser: userId, idRoleConversia: roleNameToId[newRole] });
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "No se pudo actualizar el rol.",
-          variant: "destructive",
-        });
-        return;
-      }
-    } else {
-      const { error } = await supabase
-        .from("user_roles")
-        .insert({ user_id: userId, role: newRole });
+      toast({
+        title: "Rol actualizado",
+        description: `El usuario ahora es ${newRole}.`,
+      });
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "No se pudo asignar el rol.",
-          variant: "destructive",
-        });
-        return;
-      }
+      await loadData();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el rol.",
+        variant: "destructive",
+      });
     }
-
-    toast({
-      title: "Rol actualizado",
-      description: `El usuario ahora es ${newRole}.`,
-    });
-
-    await loadData();
   };
 
   const handleSellerChange = async (userId: string, sellerId: string | null) => {
-    const { error } = await supabase
-      .from("profiles")
-      .update({ seller_id: sellerId })
-      .eq("user_id", userId);
+    try {
+      await api.admin.updateProfileSeller(userId, { id_seller: sellerId });
 
-    if (error) {
+      toast({
+        title: "Vendedor actualizado",
+        description: sellerId ? "Vendedor asignado correctamente." : "Vendedor removido.",
+      });
+
+      await loadData();
+    } catch (error) {
       toast({
         title: "Error",
         description: "No se pudo actualizar el vendedor asignado.",
         variant: "destructive",
       });
-      return;
     }
-
-    toast({
-      title: "Vendedor actualizado",
-      description: sellerId ? "Vendedor asignado correctamente." : "Vendedor removido.",
-    });
-
-    await loadData();
   };
 
-  const handleUpdateStartDate = async (profileId: string, startDate: string) => {
-    // Convert date string to ISO timestamp for Supabase
+  const handleUpdateStartDate = async (profileId: number, startDate: string) => {
     const dateValue = startDate ? new Date(startDate + "T00:00:00").toISOString() : null;
-    
-    console.log("Updating subscription_start_date:", { profileId, startDate, dateValue });
-    
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({ subscription_start_date: dateValue })
-      .eq("id", profileId)
-      .select();
 
-    console.log("Update result:", { data, error });
+    try {
+      await api.admin.updateStartDate(String(profileId), { entryDate: dateValue });
 
-    if (error) {
+      toast({
+        title: "Fecha actualizada",
+        description: "La fecha de implementación ha sido actualizada.",
+      });
+
+      setEditingStartDate(null);
+      await loadData();
+    } catch (error) {
       console.error("Error updating date:", error);
       toast({
         title: "Error",
         description: "No se pudo actualizar la fecha de implementación.",
         variant: "destructive",
       });
-      return;
     }
-
-    toast({
-      title: "Fecha actualizada",
-      description: "La fecha de implementación ha sido actualizada.",
-    });
-
-    setEditingStartDate(null);
-    await loadData();
   };
 
   const handleCreatePayment = async () => {
-    if (!newPayment.user_id) {
+    if (!newPayment.email) {
       toast({
         title: "Error",
         description: "Debes seleccionar un cliente.",
@@ -607,13 +504,14 @@ const Admin = () => {
     }
 
     setCreatingPayment(true);
-    
+
     const reference = `MANUAL-${Date.now()}-${Math.random().toString(36).substring(7).toUpperCase()}`;
-    
-    const { error } = await supabase
-      .from("transactions")
-      .insert({
-        user_id: newPayment.user_id,
+
+    try {
+      const selectedProfile = profiles.find(p => p.email === newPayment.email);
+      await api.admin.createTransaction({
+        email: selectedProfile?.email || "",
+        id_company: selectedProfile?.id_company || null,
         plan_name: `${newPayment.plan_name} - ${newPayment.package_name}`,
         amount: newPayment.amount,
         payment_method: newPayment.payment_method,
@@ -622,26 +520,26 @@ const Admin = () => {
         currency: "COP",
       });
 
-    setCreatingPayment(false);
-
-    if (error) {
+      toast({
+        title: "Pago creado",
+        description: "El pago se ha registrado correctamente.",
+      });
+    } catch (error: any) {
       console.error("Error creating payment:", error);
       toast({
         title: "Error",
-        description: "No se pudo crear el pago: " + error.message,
+        description: "No se pudo crear el pago: " + (error.message || "Error desconocido"),
         variant: "destructive",
       });
+      setCreatingPayment(false);
       return;
     }
 
-    toast({
-      title: "Pago creado",
-      description: "El pago se ha registrado correctamente.",
-    });
+    setCreatingPayment(false);
 
     setNewPaymentModal(false);
     setNewPayment({
-      user_id: "",
+      email: "",
       plan_name: "mensual",
       package_name: "basico",
       amount: 150000,
@@ -653,13 +551,7 @@ const Admin = () => {
 
   const handleOpenUserDetail = (profile: Profile) => {
     setEditingUserForm({
-      first_name: profile.first_name || "",
-      last_name: profile.last_name || "",
-      company_name: profile.company_name || "",
-      contact_name: profile.contact_name || "",
-      nit: profile.nit || "",
-      document_type: profile.document_type || "",
-      document_number: profile.document_number || "",
+      name: profile.name || "",
       phone: profile.phone || "",
       city: profile.city || "",
       address: profile.address || "",
@@ -673,114 +565,105 @@ const Admin = () => {
     
     setSavingUser(true);
     
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        first_name: editingUserForm.first_name || null,
-        last_name: editingUserForm.last_name || null,
-        company_name: editingUserForm.company_name || null,
-        contact_name: editingUserForm.contact_name || null,
-        nit: editingUserForm.nit || null,
-        document_type: editingUserForm.document_type || null,
-        document_number: editingUserForm.document_number || null,
+    try {
+      await api.admin.updateProfile(String(userDetailModal.profile.id), {
+        name: editingUserForm.name || null,
         phone: editingUserForm.phone || null,
         city: editingUserForm.city || null,
         address: editingUserForm.address || null,
-      })
-      .eq("id", userDetailModal.profile.id);
+      });
 
-    setSavingUser(false);
+      toast({
+        title: "Perfil actualizado",
+        description: "Los datos del usuario han sido guardados correctamente.",
+      });
 
-    if (error) {
+      setUserDetailModal({ open: false, profile: null });
+      await loadData();
+    } catch (error) {
       toast({
         title: "Error",
         description: "No se pudo actualizar el perfil del usuario",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setSavingUser(false);
     }
-
-    toast({
-      title: "Perfil actualizado",
-      description: "Los datos del usuario han sido guardados correctamente.",
-    });
-
-    setUserDetailModal({ open: false, profile: null });
-    await loadData();
   };
 
-  const getProfileName = (userId: string): string => {
-    const profile = profiles.find(p => p.user_id === userId);
+  const getProfileName = (profileId: number | string): string => {
+    const id = Number(profileId);
+    const profile = profiles.find(p => p.id === id);
     if (!profile) return "Usuario desconocido";
-    return profile.account_type === "empresa" 
-      ? profile.company_name || "Empresa" 
-      : `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Usuario";
+    return profile.name || profile.company_name || "Usuario";
   };
 
-  const getProfileEmail = (userId: string): string => {
-    const profile = profiles.find(p => p.user_id === userId);
+  const getProfileEmail = (profileId: number | string): string => {
+    const id = Number(profileId);
+    const profile = profiles.find(p => p.id === id);
     return profile?.email || "";
   };
 
-  const getUserTransactions = (userId: string) => {
+  const getProfileByEmail = (email: string): Profile | undefined => {
+    return profiles.find(p => p.email === email);
+  };
+
+  const getUserTransactions = (profileId: number | string) => {
+    const id = Number(profileId);
+    const profile = profiles.find(p => p.id === id);
+    if (!profile) return [];
     return transactions
-      .filter(tx => tx.user_id === userId)
+      .filter(tx => tx.email === profile.email || tx.id_company === profile.id_company)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   };
 
   const filteredProfiles = profiles.filter(p => {
-    const name = p.account_type === "empresa" 
-      ? p.company_name?.toLowerCase() 
-      : `${p.first_name} ${p.last_name}`.toLowerCase();
-    const matchesSearch = name?.includes(searchUser.toLowerCase()) || 
+    const name = (p.name || p.company_name || "").toLowerCase();
+    const matchesSearch = name.includes(searchUser.toLowerCase()) ||
            p.email.toLowerCase().includes(searchUser.toLowerCase());
-    const matchesRole = filterRole === "all" || getUserRole(p.user_id) === filterRole;
+    const matchesRole = filterRole === "all" || (p.role_conversia || "user") === filterRole;
     return matchesSearch && matchesRole;
   });
 
   const filteredTransactions = transactions.filter(tx => {
-    const matchesSearch = 
-      tx.reference.toLowerCase().includes(searchTransaction.toLowerCase()) ||
-      tx.plan_name.toLowerCase().includes(searchTransaction.toLowerCase()) ||
-      getProfileName(tx.user_id).toLowerCase().includes(searchTransaction.toLowerCase()) ||
-      getProfileEmail(tx.user_id).toLowerCase().includes(searchTransaction.toLowerCase());
-    
-    const matchesUserFilter = filterUser === "all" || tx.user_id === filterUser;
+    const txProfile = getProfileByEmail(tx.email);
+    const txProfileName = txProfile ? (txProfile.name || txProfile.company_name || "") : "";
+    const matchesSearch =
+      (tx.reference || "").toLowerCase().includes(searchTransaction.toLowerCase()) ||
+      (tx.plan_name || "").toLowerCase().includes(searchTransaction.toLowerCase()) ||
+      txProfileName.toLowerCase().includes(searchTransaction.toLowerCase()) ||
+      (tx.email || "").toLowerCase().includes(searchTransaction.toLowerCase());
+
+    const matchesUserFilter = filterUser === "all" || (txProfile && String(txProfile.id) === filterUser);
     const matchesStatusFilter = filterStatus === "all" || tx.status === filterStatus;
-    
+
     return matchesSearch && matchesUserFilter && matchesStatusFilter;
   });
 
   const filteredTickets = tickets.filter(ticket => {
-    const matchesSearch = 
+    const matchesSearch =
       ticket.subject.toLowerCase().includes(searchTicket.toLowerCase()) ||
-      ticket.description.toLowerCase().includes(searchTicket.toLowerCase()) ||
-      getProfileName(ticket.user_id).toLowerCase().includes(searchTicket.toLowerCase()) ||
-      getProfileEmail(ticket.user_id).toLowerCase().includes(searchTicket.toLowerCase());
-    
+      ticket.description.toLowerCase().includes(searchTicket.toLowerCase());
+
     const matchesStatusFilter = filterTicketStatus === "all" || ticket.status === filterTicketStatus;
-    
+
     return matchesSearch && matchesStatusFilter;
   });
 
   const handleUpdateTicketStatus = async (ticketId: string, newStatus: string) => {
-    const { error } = await supabase
-      .from("support_tickets")
-      .update({ status: newStatus })
-      .eq("id", ticketId);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el estado del ticket",
-        variant: "destructive"
-      });
-    } else {
+    try {
+      await api.admin.updateTicketStatus(ticketId, { status: newStatus });
       toast({
         title: "Éxito",
         description: "Estado del ticket actualizado"
       });
       await loadData();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado del ticket",
+        variant: "destructive"
+      });
     }
   };
 
@@ -790,47 +673,40 @@ const Admin = () => {
     setLoadingMessages(true);
     setNewMessage("");
 
-    const { data: messages } = await supabase
-      .from("ticket_messages")
-      .select("*")
-      .eq("ticket_id", ticket.id)
-      .order("created_at", { ascending: true });
-
-    setTicketMessages((messages as TicketMessage[]) || []);
-    setLoadingMessages(false);
+    try {
+      const messages = await api.admin.ticketMessages(ticket.id);
+      setTicketMessages((messages as TicketMessage[]) || []);
+    } catch (error) {
+      setTicketMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
   };
 
   const handleSendAdminMessage = async () => {
     if (!selectedTicket || !newMessage.trim() || selectedTicket.status === "closed") return;
 
-    const { data: session } = await supabase.auth.getSession();
-    if (!session.session) return;
+    const user = getUser();
+    if (!user) return;
 
-    const { error } = await supabase
-      .from("ticket_messages")
-      .insert({
-        ticket_id: selectedTicket.id,
-        user_id: session.session.user.id,
+    try {
+      await api.admin.sendTicketMessage({
+        id_ticket: selectedTicket.id,
+        id_user: user.id,
         message: newMessage.trim(),
         is_from_support: true
       });
 
-    if (error) {
+      setNewMessage("");
+      // Refresh messages
+      const messages = await api.admin.ticketMessages(selectedTicket.id);
+      setTicketMessages((messages as TicketMessage[]) || []);
+    } catch (error) {
       toast({
         title: "Error",
         description: "No se pudo enviar el mensaje",
         variant: "destructive"
       });
-    } else {
-      setNewMessage("");
-      // Refresh messages
-      const { data: messages } = await supabase
-        .from("ticket_messages")
-        .select("*")
-        .eq("ticket_id", selectedTicket.id)
-        .order("created_at", { ascending: true });
-
-      setTicketMessages((messages as TicketMessage[]) || []);
     }
   };
 
@@ -839,32 +715,42 @@ const Admin = () => {
     const now = new Date();
 
     return profiles.map(profile => {
-      // Get user's approved transactions
-      const userTransactions = transactions
-        .filter(tx => tx.user_id === profile.user_id && tx.status === "APPROVED")
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const lastPaymentDate = profile.last_payment_date ? new Date(profile.last_payment_date) : null;
 
-      const lastPayment = userTransactions[0];
-      const lastPaymentDate = lastPayment ? new Date(lastPayment.created_at) : null;
-      
-      // Implementation date is manually set (subscription_start_date)
-      const implementationDate = profile.subscription_start_date 
-        ? parseISO(profile.subscription_start_date)
+      // Build a lastPayment-like object from profile fields
+      const lastPayment = profile.last_plan_name ? {
+        plan_name: profile.last_plan_name,
+        amount: profile.last_amount || 0,
+        currency: profile.last_currency || 'COP',
+        created_at: profile.last_payment_date || '',
+      } : null;
+
+      // Implementation date is fixed — date of monthly billing cycle, never changes
+      const implementationDate = profile.entry_date
+        ? parseISO(profile.entry_date)
         : null;
-      
-      // Calculate subscription end date (30 days after implementation date ONLY)
-      const subscriptionEndDate = implementationDate ? addDays(implementationDate, 30) : null;
-      
-      // Calculate days overdue
+
+      // Count approved payments for this user
+      const totalPayments = transactions.filter(tx => tx.email === profile.email).length;
+
+      // Subscription end = entryDate + N months (N = total payments)
+      // E.g. implemented 14 mar + 2 payments = expires 14 may
+      const subscriptionEndDate = implementationDate && totalPayments > 0
+        ? addMonths(implementationDate, totalPayments)
+        : null;
+
+      // Calculate status
       let daysOverdue = 0;
-      let status: "paid" | "pending" | "overdue" | "inactive" = "inactive";
+      let status: "paid" | "expiring" | "pending" | "overdue" | "inactive" = "inactive";
 
       if (!implementationDate) {
-        // No implementation date set
-        status = lastPaymentDate ? "pending" : "inactive"; // Has paid but not implemented yet
-      } else if (subscriptionEndDate && isBefore(now, subscriptionEndDate)) {
-        status = "paid"; // Within subscription period
-      } else if (subscriptionEndDate && isBefore(subscriptionEndDate, now)) {
+        status = lastPaymentDate ? "pending" : "inactive";
+      } else if (!subscriptionEndDate) {
+        status = "inactive";
+      } else if (isBefore(now, subscriptionEndDate)) {
+        const daysLeft = differenceInDays(subscriptionEndDate, now);
+        status = daysLeft <= 7 ? "expiring" : "paid";
+      } else {
         daysOverdue = differenceInDays(now, subscriptionEndDate);
         status = "overdue";
       }
@@ -877,7 +763,7 @@ const Admin = () => {
         subscriptionEndDate,
         daysOverdue,
         status,
-        totalPayments: userTransactions.length,
+        totalPayments,
       };
     });
   }, [profiles, transactions]);
@@ -921,40 +807,14 @@ const Admin = () => {
         minimumFractionDigits: 0,
       }).format(originalAmount);
 
-      // Si ya estaba pagada, se debe crear un saldo pendiente NEGATIVO para descontar en el próximo pago.
+      await api.admin.cancelCommission(commission.id, {
+        commission,
+        originalAmount,
+        formattedAmount,
+      });
+
       if (commission.status === "paid") {
         const negativeAmount = -originalAmount;
-        const cancelNote = `Se pagó ${formattedAmount}, se canceló la venta. Queda en $0 y se genera saldo negativo de ${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(negativeAmount)} a descontar.`;
-
-        const { error: insertError } = await supabase
-          .from("seller_commissions")
-          .insert({
-            seller_id: commission.seller_id,
-            transaction_id: commission.transaction_id,
-            user_id: commission.user_id,
-            plan_name: commission.plan_name,
-            plan_type: commission.plan_type,
-            transaction_amount: commission.transaction_amount,
-            commission_month: commission.commission_month,
-            commission_percentage: commission.commission_percentage,
-            commission_amount: negativeAmount,
-            status: "pending",
-            notes: `Devolución por cancelación de comisión pagada (${formattedAmount})`,
-          });
-
-        if (insertError) throw insertError;
-
-        const { error: cancelError } = await supabase
-          .from("seller_commissions")
-          .update({ 
-            status: "cancelled", 
-            commission_amount: 0,
-            notes: cancelNote,
-          })
-          .eq("id", commission.id);
-
-        if (cancelError) throw cancelError;
-
         toast({
           title: "Comisión revertida",
           description: `Se creó un saldo pendiente de ${new Intl.NumberFormat("es-CO", {
@@ -964,19 +824,6 @@ const Admin = () => {
           }).format(negativeAmount)} para descontar en el próximo pago.`,
         });
       } else {
-        const cancelNote = `Comisión de ${formattedAmount} cancelada antes de pagar.`;
-        
-        const { error } = await supabase
-          .from("seller_commissions")
-          .update({ 
-            status: "cancelled", 
-            commission_amount: 0,
-            notes: cancelNote,
-          })
-          .eq("id", commission.id);
-
-        if (error) throw error;
-
         toast({
           title: "Comisión cancelada",
           description: "La comisión fue cancelada (saldo 0).",
@@ -1001,13 +848,8 @@ const Admin = () => {
     setPayingSeller(true);
     try {
       const commissionIds = paySellerModal.pendingCommissions.map(c => c.id);
-      
-      const { error } = await supabase
-        .from("seller_commissions")
-        .update({ status: "paid", paid_at: new Date().toISOString() })
-        .in("id", commissionIds);
 
-      if (error) throw error;
+      await api.admin.payCommissions({ ids: commissionIds });
 
       toast({
         title: "Pago registrado",
@@ -1028,7 +870,7 @@ const Admin = () => {
   };
 
   const handleCreateCommission = async () => {
-    if (!newCommission.seller_id || newCommission.commission_amount === 0) {
+    if (!newCommission.id_seller || newCommission.commission_amount === 0) {
       toast({
         title: "Error",
         description: "Debes seleccionar un vendedor y especificar un monto de comisión.",
@@ -1039,23 +881,19 @@ const Admin = () => {
 
     setCreatingCommission(true);
     try {
-      const { error } = await supabase
-        .from("seller_commissions")
-        .insert({
-          seller_id: newCommission.seller_id,
-          transaction_id: crypto.randomUUID(),
-          user_id: newCommission.seller_id,
-          plan_name: newCommission.plan_name || "Manual",
-          plan_type: newCommission.plan_type,
-          transaction_amount: newCommission.transaction_amount,
-          commission_month: 1,
-          commission_percentage: newCommission.commission_percentage,
-          commission_amount: newCommission.commission_amount,
-          status: "pending",
-          notes: newCommission.notes || "Comisión creada manualmente",
-        });
-
-      if (error) throw error;
+      await api.admin.createCommission({
+        id_seller: newCommission.id_seller,
+        id_transaction: crypto.randomUUID(),
+        id_user: newCommission.id_seller,
+        plan_name: newCommission.plan_name || "Manual",
+        plan_type: newCommission.plan_type,
+        transaction_amount: newCommission.transaction_amount,
+        commission_month: 1,
+        commission_percentage: newCommission.commission_percentage,
+        commission_amount: newCommission.commission_amount,
+        status: "pending",
+        notes: newCommission.notes || "Comisión creada manualmente",
+      });
 
       toast({
         title: "Comisión creada",
@@ -1064,7 +902,7 @@ const Admin = () => {
 
       setNewCommissionModal(false);
       setNewCommission({
-        seller_id: "",
+        id_seller: "",
         plan_name: "",
         plan_type: "mensual",
         transaction_amount: 0,
@@ -1182,7 +1020,7 @@ const Admin = () => {
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Admins</p>
-                  <p className="text-xl font-bold">{userRoles.filter(r => r.role === "admin").length}</p>
+                  <p className="text-xl font-bold">{profiles.filter(p => p.role_conversia === "admin").length}</p>
                 </div>
               </div>
             </div>
@@ -1237,7 +1075,8 @@ const Admin = () => {
                     <SelectContent>
                       <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="paid">Al día</SelectItem>
-                      <SelectItem value="pending">Por vencer</SelectItem>
+                      <SelectItem value="expiring">Por vencer</SelectItem>
+                      <SelectItem value="pending">Pendiente</SelectItem>
                       <SelectItem value="overdue">En mora</SelectItem>
                       <SelectItem value="inactive">Sin pagos</SelectItem>
                     </SelectContent>
@@ -1306,26 +1145,26 @@ const Admin = () => {
                       {subscriptionData
                         .filter(s => {
                           // Exclude admins from subscriptions
-                          if (getUserRole(s.profile.user_id) === "admin") return false;
-                          
-                          const matchesSearch = 
-                            getProfileName(s.profile.user_id).toLowerCase().includes(searchUser.toLowerCase()) ||
+                          if (s.profile.role_conversia === "admin") return false;
+
+                          const matchesSearch =
+                            (s.profile.name || s.profile.company_name || "").toLowerCase().includes(searchUser.toLowerCase()) ||
                             s.profile.email.toLowerCase().includes(searchUser.toLowerCase());
-                          
+
                           // Filter by subscription status (paid, pending, overdue, inactive)
                           const matchesStatus = filterUser === "all" || s.status === filterUser;
-                          
+
                           // Filter by payment period (month/year)
                           let matchesPaymentPeriod = true;
-                          
+
                           // Only apply payment period filter if a specific month is selected
                           if (subscriptionFilterMonth !== "all") {
                             const filterMonth = parseInt(subscriptionFilterMonth);
                             const filterYear = parseInt(subscriptionFilterYear);
-                            
+
                             // Get all approved transactions for this user
                             const userApprovedTx = transactions.filter(
-                              tx => tx.user_id === s.profile.user_id && tx.status === "APPROVED"
+                              tx => (tx.email === s.profile.email || tx.id_company === s.profile.id_company) && tx.status === "APPROVED"
                             );
                             
                             // Check if user has ANY payment in the selected month/year
@@ -1339,13 +1178,10 @@ const Admin = () => {
                           return matchesSearch && matchesStatus && matchesPaymentPeriod;
                         })
                         .sort((a, b) => {
-                          // Sort by status priority: overdue first, then pending, then paid, then inactive
-                          const priority = { overdue: 0, pending: 1, paid: 2, inactive: 3 };
-                          if (priority[a.status] !== priority[b.status]) {
-                            return priority[a.status] - priority[b.status];
-                          }
-                          // Then by days overdue (descending)
-                          return b.daysOverdue - a.daysOverdue;
+                          // Sort alphabetically by name
+                          const nameA = (a.profile.name || a.profile.email || '').toLowerCase();
+                          const nameB = (b.profile.name || b.profile.email || '').toLowerCase();
+                          return nameA.localeCompare(nameB, 'es');
                         })
                         .map((sub) => (
                           <tr key={sub.profile.id} className="border-b border-border/50 hover:bg-secondary/50">
@@ -1353,13 +1189,15 @@ const Admin = () => {
                               <div className="flex items-center gap-3">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                                   sub.status === "paid" ? "bg-green-500/20" :
+                                  sub.status === "expiring" ? "bg-yellow-500/20" :
                                   sub.status === "overdue" ? "bg-red-500/20" :
                                   sub.status === "pending" ? "bg-yellow-500/20" :
                                   "bg-muted"
                                 }`}>
-                                  {sub.profile.account_type === "empresa" ? (
+                                  {sub.profile.company_name ? (
                                     <Building2 className={`w-5 h-5 ${
                                       sub.status === "paid" ? "text-green-400" :
+                                      sub.status === "expiring" ? "text-yellow-400" :
                                       sub.status === "overdue" ? "text-red-400" :
                                       sub.status === "pending" ? "text-yellow-400" :
                                       "text-muted-foreground"
@@ -1367,6 +1205,7 @@ const Admin = () => {
                                   ) : (
                                     <User className={`w-5 h-5 ${
                                       sub.status === "paid" ? "text-green-400" :
+                                      sub.status === "expiring" ? "text-yellow-400" :
                                       sub.status === "overdue" ? "text-red-400" :
                                       sub.status === "pending" ? "text-yellow-400" :
                                       "text-muted-foreground"
@@ -1375,9 +1214,7 @@ const Admin = () => {
                                 </div>
                                 <div>
                                   <span className="font-medium block">
-                                    {sub.profile.account_type === "empresa" 
-                                      ? sub.profile.company_name 
-                                      : `${sub.profile.first_name} ${sub.profile.last_name}`}
+                                    {sub.profile.name || sub.profile.company_name || sub.profile.email}
                                   </span>
                                   <span className="text-xs text-muted-foreground">{sub.profile.email}</span>
                                 </div>
@@ -1422,9 +1259,9 @@ const Admin = () => {
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-2">
-                                  {sub.profile.subscription_start_date ? (
+                                  {sub.profile.entry_date ? (
                                     <span className="text-primary font-medium">
-                                      {format(parseISO(sub.profile.subscription_start_date), "dd MMM yyyy", { locale: es })}
+                                      {format(parseISO(sub.profile.entry_date), "dd MMM yyyy", { locale: es })}
                                     </span>
                                   ) : (
                                     <span className="text-muted-foreground italic text-sm">Sin asignar</span>
@@ -1436,8 +1273,8 @@ const Admin = () => {
                                     onClick={() => {
                                       setEditingStartDate(sub.profile.id);
                                       setTempStartDate(
-                                        sub.profile.subscription_start_date 
-                                          ? sub.profile.subscription_start_date.split('T')[0]
+                                        sub.profile.entry_date 
+                                          ? sub.profile.entry_date.split('T')[0]
                                           : format(new Date(), "yyyy-MM-dd")
                                       );
                                     }}
@@ -1455,20 +1292,24 @@ const Admin = () => {
                             </td>
                             <td className="py-3 px-4">
                               <span className={`px-3 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1 ${
-                                sub.status === "paid" 
+                                sub.status === "paid"
                                   ? "bg-green-500/20 text-green-400"
-                                  : sub.status === "pending"
+                                  : sub.status === "expiring"
                                     ? "bg-yellow-500/20 text-yellow-400"
-                                    : sub.status === "overdue"
-                                      ? "bg-red-500/20 text-red-400"
-                                      : "bg-muted text-muted-foreground"
+                                    : sub.status === "pending"
+                                      ? "bg-blue-500/20 text-blue-400"
+                                      : sub.status === "overdue"
+                                        ? "bg-red-500/20 text-red-400"
+                                        : "bg-muted text-muted-foreground"
                               }`}>
                                 {sub.status === "paid" && <CheckCircle className="w-3 h-3" />}
+                                {sub.status === "expiring" && <CalendarClock className="w-3 h-3" />}
                                 {sub.status === "pending" && <CalendarClock className="w-3 h-3" />}
                                 {sub.status === "overdue" && <AlertTriangle className="w-3 h-3" />}
                                 {sub.status === "inactive" && <XCircle className="w-3 h-3" />}
-                                {sub.status === "paid" ? "Al día" : 
-                                 sub.status === "pending" ? "Por vencer" : 
+                                {sub.status === "paid" ? "Al día" :
+                                 sub.status === "expiring" ? "Por vencer" :
+                                 sub.status === "pending" ? "Pendiente" :
                                  sub.status === "overdue" ? "En mora" : "Sin pagos"}
                               </span>
                             </td>
@@ -1532,7 +1373,7 @@ const Admin = () => {
                     <thead>
                       <tr className="border-b border-border">
                         <th className="text-left py-3 px-4 text-muted-foreground font-medium">Usuario</th>
-                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Tipo</th>
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Empresa</th>
                         <th className="text-left py-3 px-4 text-muted-foreground font-medium">Email</th>
                         <th className="text-left py-3 px-4 text-muted-foreground font-medium">Ciudad</th>
                         <th className="text-left py-3 px-4 text-muted-foreground font-medium">Vendedor</th>
@@ -1543,66 +1384,33 @@ const Admin = () => {
                     </thead>
                     <tbody>
                       {filteredProfiles.map((profile) => {
-                        const sellerProfile = profile.seller_id 
-                          ? profiles.find(p => p.user_id === profile.seller_id) 
-                          : null;
-                        const sellerName = sellerProfile 
-                          ? (sellerProfile.account_type === "empresa" 
-                              ? sellerProfile.company_name 
-                              : `${sellerProfile.first_name} ${sellerProfile.last_name}`)
-                          : null;
-                        
-                        // Get all vendedores for the select
-                        const vendedores = profiles.filter(p => getUserRole(p.user_id) === "vendedor");
-                        
                         return (
                           <tr key={profile.id} className="border-b border-border/50 hover:bg-secondary/50">
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                                  {profile.account_type === "empresa" ? (
+                                  {profile.company_name ? (
                                     <Building2 className="w-5 h-5 text-primary-foreground" />
                                   ) : (
                                     <User className="w-5 h-5 text-primary-foreground" />
                                   )}
                                 </div>
                                 <span>
-                                  {profile.account_type === "empresa" 
-                                    ? profile.company_name 
-                                    : `${profile.first_name} ${profile.last_name}`}
+                                  {profile.name || profile.company_name || profile.email}
                                 </span>
                               </div>
                             </td>
-                            <td className="py-3 px-4 capitalize">{profile.account_type}</td>
+                            <td className="py-3 px-4">{profile.company_name || "-"}</td>
                             <td className="py-3 px-4">{profile.email}</td>
                             <td className="py-3 px-4">{profile.city || "-"}</td>
-                            <td className="py-3 px-4">
-                              <Select
-                                value={profile.seller_id || "none"}
-                                onValueChange={(value) => handleSellerChange(profile.user_id, value === "none" ? null : value)}
-                              >
-                                <SelectTrigger className="w-40 bg-secondary border-border">
-                                  <SelectValue placeholder="Sin vendedor" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">Sin vendedor</SelectItem>
-                                  {vendedores.map((v) => (
-                                    <SelectItem key={v.user_id} value={v.user_id}>
-                                      {v.account_type === "empresa" 
-                                        ? v.company_name 
-                                        : `${v.first_name} ${v.last_name}`}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </td>
+                            <td className="py-3 px-4 text-muted-foreground">-</td>
                             <td className="py-3 px-4">
                               {new Date(profile.created_at).toLocaleDateString("es-CO")}
                             </td>
                             <td className="py-3 px-4">
                               <Select
-                                value={getUserRole(profile.user_id)}
-                                onValueChange={(value) => handleRoleChange(profile.user_id, value as "admin" | "moderator" | "user" | "support" | "vendedor")}
+                                value={profile.role_conversia || "user"}
+                                onValueChange={(value) => handleRoleChange(profile.id, value as "admin" | "moderator" | "user" | "support" | "vendedor")}
                               >
                                 <SelectTrigger className="w-32 bg-secondary border-border">
                                   <SelectValue />
@@ -1656,10 +1464,8 @@ const Admin = () => {
                     <SelectContent>
                       <SelectItem value="all">Todos los usuarios</SelectItem>
                       {profiles.map((profile) => (
-                        <SelectItem key={profile.user_id} value={profile.user_id}>
-                          {profile.account_type === "empresa" 
-                            ? profile.company_name 
-                            : `${profile.first_name} ${profile.last_name}`}
+                        <SelectItem key={profile.id} value={String(profile.id)}>
+                          {profile.name || profile.company_name || profile.email}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1714,14 +1520,14 @@ const Admin = () => {
                             </td>
                             <td className="py-3 px-4">
                               <div>
-                                <p className="font-medium">{getProfileName(tx.user_id)}</p>
-                                <p className="text-sm text-muted-foreground">{getProfileEmail(tx.user_id)}</p>
+                                <p className="font-medium">{getProfileByEmail(tx.email)?.name || getProfileByEmail(tx.email)?.company_name || tx.email}</p>
+                                <p className="text-sm text-muted-foreground">{tx.email}</p>
                               </div>
                             </td>
                             <td className="py-3 px-4 font-mono text-sm">{tx.reference}</td>
                             <td className="py-3 px-4 capitalize">{tx.plan_name}</td>
                             <td className="py-3 px-4">
-                              ${tx.amount.toLocaleString("es-CO")} {tx.currency}
+                              ${Number(tx.amount).toLocaleString("es-CO")} {tx.currency}
                             </td>
                             <td className="py-3 px-4">
                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -1786,7 +1592,7 @@ const Admin = () => {
                           <div>
                             <h4 className="font-medium">{ticket.subject}</h4>
                             <p className="text-sm text-muted-foreground">
-                              {getProfileName(ticket.user_id)} - {getProfileEmail(ticket.user_id)}
+                              {getProfileName(ticket.id_user)} - {getProfileEmail(ticket.id_user)}
                             </p>
                           </div>
                           <div className="flex gap-2 items-center" onClick={(e) => e.stopPropagation()}>
@@ -1857,7 +1663,7 @@ const Admin = () => {
                     
                     {/* User info */}
                     <div className="text-sm text-muted-foreground mb-2">
-                      Usuario: {selectedTicket ? getProfileName(selectedTicket.user_id) : ""} ({selectedTicket ? getProfileEmail(selectedTicket.user_id) : ""})
+                      Usuario: {selectedTicket ? getProfileName(selectedTicket.id_user) : ""} ({selectedTicket ? getProfileEmail(selectedTicket.id_user) : ""})
                     </div>
                     
                     {/* Original description */}
@@ -1951,7 +1757,7 @@ const Admin = () => {
                     <div className="bg-secondary/50 rounded-lg p-4">
                       <p className="text-muted-foreground text-sm">Total Vendedores</p>
                       <p className="text-2xl font-bold text-foreground">
-                        {profiles.filter(p => getUserRole(p.user_id) === "vendedor").length}
+                        {profiles.filter(p => p.role_conversia === "vendedor").length}
                       </p>
                     </div>
                     <div className="bg-secondary/50 rounded-lg p-4">
@@ -1978,9 +1784,9 @@ const Admin = () => {
                     Vendedores y Clientes Asignados
                   </h3>
                   <div className="space-y-4">
-                    {profiles.filter(p => getUserRole(p.user_id) === "vendedor").map((seller) => {
-                      const assignedClients = profiles.filter(p => p.seller_id === seller.user_id);
-                      const sellerCommissions = commissions.filter(c => c.seller_id === seller.user_id);
+                    {profiles.filter(p => p.role_conversia === "vendedor").map((seller) => {
+                      const assignedClients: Profile[] = [];
+                      const sellerCommissions = commissions.filter(c => c.id_seller === seller.id);
                       const pendingAmount = sellerCommissions.filter(c => c.status === "pending").reduce((sum, c) => sum + c.commission_amount, 0);
                       const paidAmount = sellerCommissions.filter(c => c.status === "paid").reduce((sum, c) => sum + c.commission_amount, 0);
                       
@@ -1993,9 +1799,7 @@ const Admin = () => {
                               </div>
                               <div>
                                 <p className="font-medium text-foreground">
-                                  {seller.account_type === "empresa" 
-                                    ? seller.company_name 
-                                    : `${seller.first_name} ${seller.last_name}`}
+                                  {seller.name || seller.company_name || seller.email}
                                 </p>
                                 <p className="text-sm text-muted-foreground">{seller.email}</p>
                               </div>
@@ -2029,12 +1833,10 @@ const Admin = () => {
                                 size="sm"
                                 onClick={() => {
                                   const pendingComms = sellerCommissions.filter(c => c.status === "pending" && c.commission_amount > 0);
-                                  const sellerName = seller.account_type === "empresa" 
-                                    ? seller.company_name || ""
-                                    : `${seller.first_name} ${seller.last_name}`;
+                                  const sellerName = seller.name || seller.company_name || seller.email;
                                   setPaySellerModal({
                                     open: true,
-                                    sellerId: seller.user_id,
+                                    sellerId: seller.id,
                                     sellerName,
                                     pendingAmount,
                                     pendingCommissions: pendingComms,
@@ -2054,9 +1856,7 @@ const Admin = () => {
                               <div className="flex flex-wrap gap-2">
                                 {assignedClients.slice(0, 5).map((client) => (
                                   <span key={client.id} className="bg-secondary px-2 py-1 rounded text-xs text-foreground">
-                                    {client.account_type === "empresa" 
-                                      ? client.company_name 
-                                      : `${client.first_name} ${client.last_name}`}
+                                    {client.name || client.company_name || client.email}
                                   </span>
                                 ))}
                                 {assignedClients.length > 5 && (
@@ -2070,7 +1870,7 @@ const Admin = () => {
                         </div>
                       );
                     })}
-                    {profiles.filter(p => getUserRole(p.user_id) === "vendedor").length === 0 && (
+                    {profiles.filter(p => p.role_conversia === "vendedor").length === 0 && (
                       <div className="text-center py-8">
                         <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                         <p className="text-muted-foreground">No hay vendedores registrados</p>
@@ -2205,11 +2005,9 @@ const Admin = () => {
                         </thead>
                         <tbody>
                           {filteredCommissions.map((commission) => {
-                            const sellerProfile = profiles.find(p => p.user_id === commission.seller_id);
-                            const sellerName = sellerProfile 
-                              ? (sellerProfile.account_type === "empresa" 
-                                  ? sellerProfile.company_name
-                                  : `${sellerProfile.first_name} ${sellerProfile.last_name}`)
+                            const sellerProfile = profiles.find(p => p.id === commission.id_seller);
+                            const sellerName = sellerProfile
+                              ? (sellerProfile.name || sellerProfile.company_name || sellerProfile.email)
                               : "Desconocido";
                             
                             return (
@@ -2298,7 +2096,7 @@ const Admin = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                {historyModal.profile?.account_type === "empresa" ? (
+                {historyModal.profile?.company_name ? (
                   <Building2 className="w-5 h-5 text-primary" />
                 ) : (
                   <User className="w-5 h-5 text-primary" />
@@ -2306,9 +2104,7 @@ const Admin = () => {
               </div>
               <div>
                 <span className="block">
-                  {historyModal.profile?.account_type === "empresa" 
-                    ? historyModal.profile?.company_name 
-                    : `${historyModal.profile?.first_name} ${historyModal.profile?.last_name}`}
+                  {historyModal.profile?.name || historyModal.profile?.company_name || historyModal.profile?.email}
                 </span>
                 <span className="text-sm text-muted-foreground font-normal">{historyModal.profile?.email}</span>
               </div>
@@ -2320,20 +2116,20 @@ const Admin = () => {
               {/* User Info */}
               <div className="grid grid-cols-2 gap-4 p-4 bg-secondary/50 rounded-lg">
                 <div>
-                  <span className="text-xs text-muted-foreground">Teléfono / Documento</span>
+                  <span className="text-xs text-muted-foreground">Teléfono</span>
                   <p className="font-medium">{historyModal.profile.phone || "-"}</p>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground">Ciudad</span>
-                  <p className="font-medium">{historyModal.profile.city || "-"}</p>
+                  <span className="text-xs text-muted-foreground">Empresa</span>
+                  <p className="font-medium">{historyModal.profile.company_name || "-"}</p>
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground">Fecha Registro</span>
                   <p className="font-medium">{format(new Date(historyModal.profile.created_at), "dd MMM yyyy", { locale: es })}</p>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground">NIT</span>
-                  <p className="font-medium">{historyModal.profile.nit || "-"}</p>
+                  <span className="text-xs text-muted-foreground">Dirección</span>
+                  <p className="font-medium">{historyModal.profile.address || "-"}</p>
                 </div>
               </div>
 
@@ -2349,7 +2145,7 @@ const Admin = () => {
                     const monthStart = startOfMonth(monthDate);
                     const monthEnd = endOfMonth(monthDate);
                     
-                    const hasPayment = getUserTransactions(historyModal.profile.user_id)
+                    const hasPayment = getUserTransactions(historyModal.profile.id)
                       .filter(tx => tx.status === "APPROVED")
                       .some(tx => {
                         const txDate = new Date(tx.created_at);
@@ -2391,10 +2187,10 @@ const Admin = () => {
                   Historial de Pagos
                 </h3>
                 <div className="space-y-2">
-                  {getUserTransactions(historyModal.profile.user_id).length === 0 ? (
+                  {getUserTransactions(historyModal.profile.id).length === 0 ? (
                     <p className="text-muted-foreground text-center py-4">No hay transacciones registradas</p>
                   ) : (
-                    getUserTransactions(historyModal.profile.user_id).map((tx) => (
+                    getUserTransactions(historyModal.profile.id).map((tx) => (
                       <div
                         key={tx.id}
                         className={`p-3 rounded-lg border flex items-center justify-between ${
@@ -2426,7 +2222,7 @@ const Admin = () => {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold">${tx.amount.toLocaleString("es-CO")} {tx.currency}</p>
+                          <p className="font-bold">${Number(tx.amount).toLocaleString("es-CO")} {tx.currency}</p>
                           <span className={`text-xs ${
                             tx.status === "APPROVED" ? "text-green-400" :
                             tx.status === "PENDING" ? "text-yellow-400" : "text-red-400"
@@ -2445,15 +2241,15 @@ const Admin = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Total Pagos Aprobados</span>
                   <span className="font-bold text-lg">
-                    {getUserTransactions(historyModal.profile.user_id).filter(tx => tx.status === "APPROVED").length}
+                    {getUserTransactions(historyModal.profile.id).filter(tx => tx.status === "APPROVED").length}
                   </span>
                 </div>
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-muted-foreground">Total Ingresado</span>
                   <span className="font-bold text-lg text-primary">
-                    ${getUserTransactions(historyModal.profile.user_id)
+                    ${getUserTransactions(historyModal.profile.id)
                       .filter(tx => tx.status === "APPROVED")
-                      .reduce((sum, tx) => sum + tx.amount, 0)
+                      .reduce((sum, tx) => sum + Number(tx.amount), 0)
                       .toLocaleString("es-CO")} COP
                   </span>
                 </div>
@@ -2477,24 +2273,22 @@ const Admin = () => {
             <div className="space-y-2">
               <Label>Cliente *</Label>
               <Select 
-                value={newPayment.user_id} 
-                onValueChange={(value) => setNewPayment(prev => ({ ...prev, user_id: value }))}
+                value={newPayment.email}
+                onValueChange={(value) => setNewPayment(prev => ({ ...prev, email: value }))}
               >
                 <SelectTrigger className="bg-secondary border-border">
                   <SelectValue placeholder="Seleccionar cliente" />
                 </SelectTrigger>
                 <SelectContent>
                   {profiles.map((profile) => (
-                    <SelectItem key={profile.user_id} value={profile.user_id}>
+                    <SelectItem key={profile.id} value={profile.email}>
                       <div className="flex items-center gap-2">
-                        {profile.account_type === "empresa" ? (
+                        {profile.company_name ? (
                           <Building2 className="w-4 h-4" />
                         ) : (
                           <User className="w-4 h-4" />
                         )}
-                        {profile.account_type === "empresa" 
-                          ? profile.company_name 
-                          : `${profile.first_name} ${profile.last_name}`}
+                        {profile.name || profile.company_name || profile.email}
                       </div>
                     </SelectItem>
                   ))}
@@ -2669,18 +2463,16 @@ const Admin = () => {
             <div className="space-y-2">
               <Label>Vendedor</Label>
               <Select 
-                value={newCommission.seller_id} 
-                onValueChange={(value) => setNewCommission(prev => ({ ...prev, seller_id: value }))}
+                value={newCommission.id_seller} 
+                onValueChange={(value) => setNewCommission(prev => ({ ...prev, id_seller: value }))}
               >
                 <SelectTrigger className="bg-secondary border-border">
                   <SelectValue placeholder="Selecciona un vendedor" />
                 </SelectTrigger>
                 <SelectContent>
-                  {profiles.filter(p => getUserRole(p.user_id) === "vendedor").map((seller) => (
-                    <SelectItem key={seller.user_id} value={seller.user_id}>
-                      {seller.account_type === "empresa" 
-                        ? seller.company_name 
-                        : `${seller.first_name} ${seller.last_name}`}
+                  {profiles.filter(p => p.role_conversia === "vendedor").map((seller) => (
+                    <SelectItem key={seller.id} value={String(seller.id)}>
+                      {seller.name || seller.company_name || seller.email}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -2820,7 +2612,7 @@ const Admin = () => {
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {userDetailModal.profile?.account_type === "empresa" ? (
+              {userDetailModal.profile?.company_name ? (
                 <Building2 className="w-5 h-5 text-primary" />
               ) : (
                 <User className="w-5 h-5 text-primary" />
@@ -2828,13 +2620,18 @@ const Admin = () => {
               Información del Usuario
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-6 pt-4">
-            {/* Account Type Badge */}
+            {/* Role & Company Badge */}
             <div className="flex items-center gap-2">
               <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-sm font-medium capitalize">
-                {userDetailModal.profile?.account_type}
+                {userDetailModal.profile?.role_conversia || "user"}
               </span>
+              {userDetailModal.profile?.company_name && (
+                <span className="bg-secondary text-muted-foreground px-3 py-1 rounded-full text-sm">
+                  {userDetailModal.profile.company_name}
+                </span>
+              )}
               <span className="text-muted-foreground text-sm">
                 Registrado: {userDetailModal.profile && new Date(userDetailModal.profile.created_at).toLocaleDateString("es-CO")}
               </span>
@@ -2850,86 +2647,16 @@ const Admin = () => {
               />
             </div>
 
-            {userDetailModal.profile?.account_type === "persona" ? (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Nombre</Label>
-                    <Input
-                      value={editingUserForm.first_name}
-                      onChange={(e) => setEditingUserForm(prev => ({ ...prev, first_name: e.target.value }))}
-                      className="mt-1 bg-secondary border-border"
-                    />
-                  </div>
-                  <div>
-                    <Label>Apellido</Label>
-                    <Input
-                      value={editingUserForm.last_name}
-                      onChange={(e) => setEditingUserForm(prev => ({ ...prev, last_name: e.target.value }))}
-                      className="mt-1 bg-secondary border-border"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Tipo de Documento</Label>
-                    <Select
-                      value={editingUserForm.document_type}
-                      onValueChange={(val) => setEditingUserForm(prev => ({ ...prev, document_type: val }))}
-                    >
-                      <SelectTrigger className="mt-1 bg-secondary border-border">
-                        <SelectValue placeholder="Selecciona tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
-                        <SelectItem value="CE">Cédula de Extranjería</SelectItem>
-                        <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
-                        <SelectItem value="PP">Pasaporte</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Número de Documento</Label>
-                    <Input
-                      value={editingUserForm.document_number}
-                      onChange={(e) => setEditingUserForm(prev => ({ ...prev, document_number: e.target.value }))}
-                      className="mt-1 bg-secondary border-border"
-                      placeholder="Número de documento"
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Nombre de la Empresa</Label>
-                    <Input
-                      value={editingUserForm.company_name}
-                      onChange={(e) => setEditingUserForm(prev => ({ ...prev, company_name: e.target.value }))}
-                      className="mt-1 bg-secondary border-border"
-                    />
-                  </div>
-                  <div>
-                    <Label>NIT</Label>
-                    <Input
-                      value={editingUserForm.nit}
-                      onChange={(e) => setEditingUserForm(prev => ({ ...prev, nit: e.target.value }))}
-                      className="mt-1 bg-secondary border-border"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label>Nombre de Contacto</Label>
-                  <Input
-                    value={editingUserForm.contact_name}
-                    onChange={(e) => setEditingUserForm(prev => ({ ...prev, contact_name: e.target.value }))}
-                    className="mt-1 bg-secondary border-border"
-                  />
-                </div>
-              </>
-            )}
+            {/* Name field */}
+            <div>
+              <Label>Nombre</Label>
+              <Input
+                value={editingUserForm.name}
+                onChange={(e) => setEditingUserForm(prev => ({ ...prev, name: e.target.value }))}
+                className="mt-1 bg-secondary border-border"
+                placeholder="Nombre completo"
+              />
+            </div>
 
             {/* Common fields */}
             <div className="border-t border-border pt-4">
@@ -3019,7 +2746,7 @@ const Admin = () => {
                 onClick={handleAdminInitiatePayment}
                 disabled={adminPaymentLoading}
                 className="w-full"
-                variant="hero"
+                variant="default"
               >
                 {adminPaymentLoading ? (
                   <>

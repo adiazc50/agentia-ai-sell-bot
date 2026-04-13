@@ -13,25 +13,22 @@ import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 interface Profile {
-  id: string;
-  user_id: string;
-  account_type: "persona" | "empresa";
+  id: number;
+  name: string;
   email: string;
-  first_name: string | null;
-  last_name: string | null;
-  company_name: string | null;
-  assigned_plan: string | null;
-  subscription_start_date: string | null;
+  id_company: number | null;
 }
 
 interface Transaction {
   id: string;
-  user_id: string;
+  id_company: number;
+  email: string;
   reference: string;
   plan_name: string;
   amount: number;
   currency: string;
-  status: string;
+  payment_method: string | null;
+  transaction_date: string | null;
   created_at: string;
 }
 
@@ -40,37 +37,20 @@ interface FinancialDashboardProps {
   transactions: Transaction[];
 }
 
-const statusColors: Record<string, string> = {
-  APPROVED: "bg-green-500/20 text-green-400 border-green-500/30",
-  PENDING: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  DECLINED: "bg-red-500/20 text-red-400 border-red-500/30",
-  VOIDED: "bg-red-500/20 text-red-400 border-red-500/30",
-  ERROR: "bg-red-500/20 text-red-400 border-red-500/30",
-};
-
-const statusLabels: Record<string, string> = {
-  APPROVED: "Aprobado",
-  PENDING: "Pendiente",
-  DECLINED: "Rechazado",
-  VOIDED: "Anulado",
-  ERROR: "Error",
-};
+// All logged transactions are implicitly approved (no status field in MySQL)
 
 const FinancialDashboard = ({ profiles, transactions }: FinancialDashboardProps) => {
   const currentYear = new Date().getFullYear();
   const [filterYear, setFilterYear] = useState<string>("all");
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterPlan, setFilterPlan] = useState<string>("all");
-  const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   const getName = (profile: Profile | undefined) => {
     if (!profile) return "Usuario";
-    return profile.account_type === "empresa"
-      ? profile.company_name || "Empresa"
-      : `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Usuario";
+    return profile.name || "Usuario";
   };
 
   const safeAmount = (val: unknown): number => {
@@ -85,7 +65,7 @@ const FinancialDashboard = ({ profiles, transactions }: FinancialDashboardProps)
     return isNaN(d.getTime()) ? new Date(0) : d;
   };
 
-  const getProfileByUserId = (userId: string) => profiles.find((p) => p.user_id === userId);
+  const getProfileByEmail = (email: string) => profiles.find((p) => p.email === email);
 
   // All unique plan names from transactions
   const planNames = useMemo(() => {
@@ -111,9 +91,9 @@ const FinancialDashboard = ({ profiles, transactions }: FinancialDashboardProps)
       if (filterPlan !== "all" && tx.plan_name !== filterPlan) return false;
       if (filterPaymentStatus !== "all" && tx.status !== filterPaymentStatus) return false;
       if (searchQuery) {
-        const profile = getProfileByUserId(tx.user_id);
+        const profile = getProfileByEmail(tx.email);
         const name = profile ? getName(profile) : "";
-        const email = profile?.email || "";
+        const email = tx.email || "";
         const q = searchQuery.toLowerCase();
         if (!name.toLowerCase().includes(q) && !email.toLowerCase().includes(q) && !tx.reference.toLowerCase().includes(q)) return false;
       }
@@ -132,9 +112,9 @@ const FinancialDashboard = ({ profiles, transactions }: FinancialDashboardProps)
     const totalDeclined = declined.reduce((s, t) => s + safeAmount(t.amount), 0);
 
     // Unique users who paid
-    const paidUsers = new Set(approved.map((t) => t.user_id));
+    const paidUsers = new Set(approved.map((t) => t.email));
     // All users who have any transaction in period
-    const allTxUsers = new Set(filtered.map((t) => t.user_id));
+    const allTxUsers = new Set(filtered.map((t) => t.email));
     // Users with NO approved tx
     const unpaidUsers = new Set([...allTxUsers].filter((u) => !paidUsers.has(u)));
 
@@ -166,12 +146,12 @@ const FinancialDashboard = ({ profiles, transactions }: FinancialDashboardProps)
   const userSummaries = useMemo(() => {
     const map: Record<string, { profile: Profile; approved: number; pending: number; declined: number; lastPlan: string; lastDate: string; txCount: number }> = {};
     filtered.forEach((tx) => {
-      const profile = getProfileByUserId(tx.user_id);
+      const profile = getProfileByEmail(tx.email);
       if (!profile) return;
-      if (!map[tx.user_id]) {
-        map[tx.user_id] = { profile, approved: 0, pending: 0, declined: 0, lastPlan: "", lastDate: "", txCount: 0 };
+      if (!map[tx.email]) {
+        map[tx.email] = { profile, approved: 0, pending: 0, declined: 0, lastPlan: "", lastDate: "", txCount: 0 };
       }
-      const entry = map[tx.user_id];
+      const entry = map[tx.email];
       entry.txCount++;
       if (tx.status === "APPROVED") entry.approved += safeAmount(tx.amount);
       else if (tx.status === "PENDING") entry.pending += safeAmount(tx.amount);
@@ -388,7 +368,7 @@ const FinancialDashboard = ({ profiles, transactions }: FinancialDashboardProps)
                   </TableRow>
                 ) : (
                   userSummaries.map((u) => (
-                    <TableRow key={u.profile.user_id}>
+                    <TableRow key={u.profile.id}>
                       <TableCell className="font-medium">{getName(u.profile)}</TableCell>
                       <TableCell className="text-muted-foreground text-xs">{u.profile.email}</TableCell>
                       <TableCell>

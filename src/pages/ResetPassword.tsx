@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Bot, ArrowLeft, Eye, EyeOff, Lock, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -19,37 +20,21 @@ const ResetPassword = () => {
 
   const [isValidSession, setIsValidSession] = useState(false);
 
+  const userId = searchParams.get("userId");
+  const hash = searchParams.get("hash");
+
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        setIsValidSession(true);
-      }
-    });
-
-    // Also check if user already has an active session (e.g. page reload)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setIsValidSession(true);
-      } else {
-        // Give a moment for the auth state change to fire
-        setTimeout(() => {
-          setIsValidSession((current) => {
-            if (!current) {
-              toast({
-                title: "Enlace inválido",
-                description: "Este enlace de recuperación no es válido o ha expirado.",
-                variant: "destructive",
-              });
-              navigate("/auth");
-            }
-            return current;
-          });
-        }, 2000);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate, toast]);
+    if (userId && hash) {
+      setIsValidSession(true);
+    } else {
+      toast({
+        title: "Enlace inválido",
+        description: "Este enlace de recuperación no es válido o ha expirado.",
+        variant: "destructive",
+      });
+      navigate("/auth");
+    }
+  }, [userId, hash, navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,25 +60,17 @@ const ResetPassword = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      await api.auth.updatePassword(Number(userId), hash!, password);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        setIsSuccess(true);
-        toast({
-          title: "¡Contraseña actualizada!",
-          description: "Tu contraseña ha sido cambiada exitosamente.",
-        });
-      }
-    } catch (error) {
+      setIsSuccess(true);
+      toast({
+        title: "¡Contraseña actualizada!",
+        description: "Tu contraseña ha sido cambiada exitosamente.",
+      });
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Ocurrió un error inesperado. Intenta de nuevo.",
+        description: error?.message || "Ocurrió un error inesperado. Intenta de nuevo.",
         variant: "destructive",
       });
     } finally {

@@ -14,7 +14,7 @@ import {
   CheckCircle, XCircle, Edit, HelpCircle, Plus, MessageSquare, Info, RefreshCw,
   Home, Tag
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api, isAuthenticated, getUser, logout as apiLogout } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { es, enUS, ptBR } from "date-fns/locale";
@@ -23,52 +23,67 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import DashboardShowcase from "@/components/DashboardShowcase";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import InvoicesTab from "@/components/InvoicesTab";
-import PaymentMethodSelector from "@/components/PaymentMethodSelector";
-import CountrySelect from "@/components/CountrySelect";
+
+
+interface ProfileUser {
+  id: number;
+  name: string;
+  address: string | null;
+  phone: number | null;
+  email: string;
+  idRole: number;
+  idCompany: number;
+  status: number;
+  documentType: string | null;
+  documentNumber: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ProfileCompany {
+  id: number;
+  name: string;
+  nit: string | null;
+  entryDate: string | null;
+  status: number;
+  accountType: string | null;
+}
 
 interface Profile {
-  id: string;
-  user_id: string;
-  account_type: "persona" | "empresa";
-  email: string;
-  phone: string | null;
-  address: string | null;
-  city: string | null;
-  country: string | null;
-  first_name: string | null;
-  last_name: string | null;
-  company_name: string | null;
-  nit: string | null;
-  contact_name: string | null;
-  document_type: string | null;
-  document_number: string | null;
+  user: ProfileUser;
+  company: ProfileCompany;
+  roleConversia: string;
 }
 
 interface Transaction {
-  id: string;
+  id: number;
   reference: string;
   plan_name: string;
   amount: number;
   currency: string;
   status: string;
   created_at: string;
-  siigo_invoice_id: string | null;
+  transaction_id: string | null;
+  payment_method: string | null;
+  transaction_date: string | null;
+  id_company: number;
 }
 
 interface SupportTicket {
-  id: string;
+  id: number;
+  id_user: number;
+  id_company: number;
   subject: string;
   description: string;
   status: string;
   priority: string;
   created_at: string;
-  updated_at: string;
 }
 
 interface TicketMessage {
-  id: string;
-  ticket_id: string;
-  user_id: string;
+  id: number;
+  ticket_id: number;
+  user_id: number;
   message: string;
   is_from_support: boolean;
   created_at: string;
@@ -94,17 +109,12 @@ const Dashboard = () => {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [renewModal, setRenewModal] = useState(false);
   const [editForm, setEditForm] = useState({
+    name: "",
     phone: "",
     address: "",
-    city: "",
-    country: "",
-    first_name: "",
-    last_name: "",
-    company_name: "",
-    contact_name: "",
+    documentType: "",
+    documentNumber: "",
     nit: "",
-    document_type: "",
-    document_number: ""
   });
   const [newTicket, setNewTicket] = useState({
     subject: "",
@@ -165,211 +175,128 @@ const Dashboard = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      if (!isAuthenticated()) {
         navigate("/auth");
         return;
       }
 
-      // Check if admin
-      const { data: adminRole } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+      try {
+        // Fetch profile (includes user, company, roleConversia)
+        const profileResponse = await api.profile.get();
+        const profileData = profileResponse;
 
-      if (adminRole) {
-        navigate("/admin");
-        return;
-      }
+        if (!profileData) {
+          toast({
+            title: "Perfil incompleto",
+            description: "Por favor completa tu registro.",
+            variant: "destructive",
+          });
+          navigate("/auth?mode=register");
+          return;
+        }
 
-      // Check if support
-      const { data: supportRole } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .eq("role", "support")
-        .maybeSingle();
+        // Check role-based redirects
+        const userRole = profileData.roleConversia;
+        if (userRole === 'admin') {
+          navigate("/admin");
+          return;
+        }
+        if (userRole === 'support') {
+          navigate("/support");
+          return;
+        }
+        if (userRole === 'vendedor') {
+          navigate("/seller");
+          return;
+        }
 
-      if (supportRole) {
-        navigate("/support");
-        return;
-      }
-
-      // Check if vendedor
-      const { data: vendedorRole } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .eq("role", "vendedor")
-        .maybeSingle();
-
-      if (vendedorRole) {
-        navigate("/seller");
-        return;
-      }
-
-      // Fetch profile
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
-
-      if (!profileData) {
-        toast({
-          title: "Perfil incompleto",
-          description: "Por favor completa tu registro.",
-          variant: "destructive",
+        setProfile(profileData as Profile);
+        setEditForm({
+          name: profileData.user?.name || "",
+          phone: profileData.user?.phone ? String(profileData.user.phone) : "",
+          address: profileData.user?.address || "",
+          documentType: profileData.user?.documentType || "",
+          documentNumber: profileData.user?.documentNumber || "",
+          nit: profileData.company?.nit || "",
         });
-        navigate("/auth?mode=register");
+
+        // Fetch transactions
+        const txData = await api.transactions.list();
+        setTransactions((txData as Transaction[]) || []);
+
+        // Fetch tickets
+        const ticketData = await api.tickets.list();
+        setTickets((ticketData as SupportTicket[]) || []);
+
+        // Fetch active subscription
+        const subList = await api.subscriptions.list();
+        const activeSub = Array.isArray(subList)
+          ? subList.find((s: any) => s.status === 'active' || s.status === 'retrying') || null
+          : null;
+        setActiveSubscription(activeSub);
+      } catch (err) {
+        console.error('Error loading dashboard data:', err);
+        navigate("/auth");
         return;
       }
 
-      setProfile(profileData as Profile);
-      setEditForm({
-        phone: profileData.phone || "",
-        address: profileData.address || "",
-        city: profileData.city || "",
-        country: profileData.country || "",
-        first_name: profileData.first_name || "",
-        last_name: profileData.last_name || "",
-        company_name: profileData.company_name || "",
-        contact_name: profileData.contact_name || "",
-        nit: profileData.nit || "",
-        document_type: profileData.document_type || "",
-        document_number: profileData.document_number || ""
-      });
-
-      // Fetch transactions
-      const { data: txData } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .order("created_at", { ascending: false });
-
-      setTransactions((txData as Transaction[]) || []);
-
-      // Fetch tickets
-      const { data: ticketData } = await supabase
-        .from("support_tickets")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .order("created_at", { ascending: false });
-
-      setTickets((ticketData as SupportTicket[]) || []);
-
-      // Fetch active subscription
-      const { data: subData } = await supabase
-        .from("subscriptions")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .in("status", ["active", "retrying"])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      setActiveSubscription(subData);
       setLoading(false);
     };
 
     checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") {
-        navigate("/auth");
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, [navigate, toast]);
 
   // Auto-sync transactions so invoices appear automatically without manual refresh
   useEffect(() => {
-    if (!profile?.user_id) return;
+    if (!profile?.user?.id) return;
 
     let isActive = true;
 
     const refreshTransactions = async () => {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", profile.user_id)
-        .order("created_at", { ascending: false });
-
-      if (error) {
+      try {
+        const data = await api.transactions.list();
+        if (isActive) {
+          setTransactions((data as Transaction[]) || []);
+        }
+      } catch (error) {
         console.error("Error auto-refreshing transactions:", error);
-        return;
-      }
-
-      if (isActive) {
-        setTransactions((data as Transaction[]) || []);
       }
     };
 
     const intervalId = window.setInterval(refreshTransactions, 20000);
 
-    const channel = supabase
-      .channel(`dashboard-transactions-${profile.user_id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "transactions",
-          filter: `user_id=eq.${profile.user_id}`,
-        },
-        () => {
-          refreshTransactions();
-        }
-      )
-      .subscribe();
-
     return () => {
       isActive = false;
       window.clearInterval(intervalId);
-      supabase.removeChannel(channel);
     };
-  }, [profile?.user_id]);
+  }, [profile?.user?.id]);
 
   // Handle PayPal return
   useEffect(() => {
     const paypalStatus = searchParams.get('paypal');
     const subscriptionId = searchParams.get('subscription_id');
-    
+
     if (paypalStatus === 'success' && subscriptionId && profile) {
       const activatePayPal = async () => {
         try {
-          const { data: session } = await supabase.auth.getSession();
-          if (!session.session) return;
-          const uid = session.session.user.id;
+          const user = getUser();
+          if (!user) return;
 
-          const { data, error } = await supabase.functions.invoke('paypal-activate-subscription', {
-            body: { subscription_id: subscriptionId, user_id: uid },
+          const data = await api.payments.paypalActivateSubscription({
+            subscription_id: subscriptionId,
+            user_id: user.id,
           });
-
-          if (error) throw error;
 
           if (data?.status === 'APPROVED') {
             toast({ title: "¡Pago exitoso!", description: "Tu suscripción PayPal ha sido activada." });
-            const { data: txData } = await supabase
-              .from("transactions")
-              .select("*")
-              .eq("user_id", uid)
-              .order("created_at", { ascending: false });
+            const txData = await api.transactions.list();
             setTransactions((txData as Transaction[]) || []);
-            
-            const { data: subData } = await supabase
-              .from("subscriptions")
-              .select("*")
-              .eq("user_id", uid)
-              .in("status", ["active", "retrying"])
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-            setActiveSubscription(subData);
+
+            const subList = await api.subscriptions.list();
+            const activeSub = Array.isArray(subList)
+              ? subList.find((s: any) => s.status === 'active' || s.status === 'retrying') || null
+              : null;
+            setActiveSubscription(activeSub);
           }
         } catch (err) {
           console.error('PayPal activation error:', err);
@@ -513,54 +440,48 @@ const Dashboard = () => {
     setMonthDetailModal(true);
   };
 
-  const clearAuthStorage = () => {
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
-        localStorage.removeItem(key);
-      }
-    });
-  };
-
-  const handleLogout = async () => {
-    clearAuthStorage();
-    await supabase.auth.signOut({ scope: 'local' });
-    clearAuthStorage();
-    navigate("/", { replace: true });
+  const handleLogout = () => {
+    apiLogout();
   };
 
   const handleUpdateProfile = async () => {
     if (!profile) return;
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        phone: editForm.phone || null,
+    try {
+      await api.profile.update({
+        name: editForm.name || null,
+        phone: editForm.phone ? Number(editForm.phone) : null,
         address: editForm.address || null,
-        city: editForm.city || null,
-        country: editForm.country || null,
-        first_name: editForm.first_name || null,
-        last_name: editForm.last_name || null,
-        company_name: editForm.company_name || null,
-        contact_name: editForm.contact_name || null,
+        documentType: editForm.documentType || null,
+        documentNumber: editForm.documentNumber || null,
         nit: editForm.nit || null,
-        document_type: editForm.document_type || null,
-        document_number: editForm.document_number || null
-      })
-      .eq("id", profile.id);
-
-    if (error) {
+      });
+      toast({
+        title: "Éxito",
+        description: "Perfil actualizado correctamente"
+      });
+      setProfile(prev => prev ? {
+        ...prev,
+        user: {
+          ...prev.user,
+          name: editForm.name || prev.user.name,
+          phone: editForm.phone ? Number(editForm.phone) : prev.user.phone,
+          address: editForm.address || prev.user.address,
+          documentType: editForm.documentType || prev.user.documentType,
+          documentNumber: editForm.documentNumber || prev.user.documentNumber,
+        },
+        company: {
+          ...prev.company,
+          nit: editForm.nit || prev.company?.nit,
+        }
+      } : null);
+      setEditProfileModal(false);
+    } catch (error) {
       toast({
         title: "Error",
         description: "No se pudo actualizar el perfil",
         variant: "destructive"
       });
-    } else {
-      toast({
-        title: "Éxito",
-        description: "Perfil actualizado correctamente"
-      });
-      setProfile(prev => prev ? { ...prev, ...editForm } : null);
-      setEditProfileModal(false);
     }
   };
 
@@ -574,40 +495,29 @@ const Dashboard = () => {
       return;
     }
 
-    const { data: session } = await supabase.auth.getSession();
-    if (!session.session) return;
-
-    const { error } = await supabase
-      .from("support_tickets")
-      .insert({
-        user_id: session.session.user.id,
+    try {
+      await api.tickets.create({
         subject: newTicket.subject,
         description: newTicket.description,
         priority: newTicket.priority
       });
 
-    if (error) {
+      toast({
+        title: "Éxito",
+        description: "Ticket de soporte creado correctamente"
+      });
+
+      // Refresh tickets
+      const ticketData = await api.tickets.list();
+      setTickets((ticketData as SupportTicket[]) || []);
+      setNewTicket({ subject: "", description: "", priority: "medium" });
+      setNewTicketModal(false);
+    } catch (error) {
       toast({
         title: "Error",
         description: "No se pudo crear el ticket",
         variant: "destructive"
       });
-    } else {
-      toast({
-        title: "Éxito",
-        description: "Ticket de soporte creado correctamente"
-      });
-      
-      // Refresh tickets
-      const { data: ticketData } = await supabase
-        .from("support_tickets")
-        .select("*")
-        .eq("user_id", session.session.user.id)
-        .order("created_at", { ascending: false });
-
-      setTickets((ticketData as SupportTicket[]) || []);
-      setNewTicket({ subject: "", description: "", priority: "medium" });
-      setNewTicketModal(false);
     }
   };
 
@@ -617,47 +527,36 @@ const Dashboard = () => {
     setLoadingMessages(true);
     setNewMessage("");
 
-    const { data: messages } = await supabase
-      .from("ticket_messages")
-      .select("*")
-      .eq("ticket_id", ticket.id)
-      .order("created_at", { ascending: true });
-
-    setTicketMessages((messages as TicketMessage[]) || []);
+    try {
+      const messages = await api.tickets.messages(Number(ticket.id));
+      setTicketMessages((messages as TicketMessage[]) || []);
+    } catch (error) {
+      console.error('Error loading ticket messages:', error);
+      setTicketMessages([]);
+    }
     setLoadingMessages(false);
   };
 
   const handleSendMessage = async () => {
     if (!selectedTicket || !newMessage.trim()) return;
 
-    const { data: session } = await supabase.auth.getSession();
-    if (!session.session) return;
-
-    const { error } = await supabase
-      .from("ticket_messages")
-      .insert({
+    try {
+      await api.tickets.sendMessage({
         ticket_id: selectedTicket.id,
-        user_id: session.session.user.id,
         message: newMessage.trim(),
         is_from_support: false
       });
 
-    if (error) {
+      setNewMessage("");
+      // Refresh messages
+      const messages = await api.tickets.messages(Number(selectedTicket.id));
+      setTicketMessages((messages as TicketMessage[]) || []);
+    } catch (error) {
       toast({
         title: "Error",
         description: "No se pudo enviar el mensaje",
         variant: "destructive"
       });
-    } else {
-      setNewMessage("");
-      // Refresh messages
-      const { data: messages } = await supabase
-        .from("ticket_messages")
-        .select("*")
-        .eq("ticket_id", selectedTicket.id)
-        .order("created_at", { ascending: true });
-
-      setTicketMessages((messages as TicketMessage[]) || []);
     }
   };
 
@@ -719,8 +618,8 @@ const Dashboard = () => {
   const handleConfirmRenewSubscription = async () => {
     if (!profile) return;
 
-    const { data: session } = await supabase.auth.getSession();
-    if (!session.session) return;
+    const user = getUser();
+    if (!user) return;
 
     setConfirmPaymentModal(false);
     setRenewLoading(true);
@@ -731,27 +630,18 @@ const Dashboard = () => {
       const currencyCode = 'COP';
 
       // Get Wompi signature
-      const { data: signatureData, error: signatureError } = await supabase.functions.invoke('wompi-signature', {
-        body: { 
-          reference, 
-          amountInCents: priceInCents, 
-          currency: currencyCode 
-        },
+      const signatureData = await api.payments.wompiSignature({
+        reference,
+        amountInCents: priceInCents,
+        currency: currencyCode
       });
 
-      if (signatureError) {
-        console.error('Error getting signature:', signatureError);
-        throw new Error('Error al procesar el pago');
-      }
-
       // Create pending transaction
-      await supabase.from("transactions").insert({
-        user_id: session.session.user.id,
+      await api.transactions.createPending({
         reference: reference,
         plan_name: pendingPlanName,
         amount: pendingPaymentAmount,
         currency: currencyCode,
-        status: "PENDING",
       });
 
       const checkout = new (window as any).WidgetCheckout({
@@ -762,10 +652,8 @@ const Dashboard = () => {
         signature: { integrity: signatureData.signature },
         redirectUrl: `${window.location.origin}/dashboard`,
         customerData: {
-          email: profile.email,
-          fullName: profile.account_type === "empresa" 
-            ? profile.company_name 
-            : `${profile.first_name} ${profile.last_name}`,
+          email: profile.user.email,
+          fullName: profile.company?.name || profile.user.name,
         },
       });
 
@@ -773,29 +661,22 @@ const Dashboard = () => {
         const transaction = result.transaction;
         console.log('Transaction result:', transaction);
 
-        // Update transaction status
-        await supabase
-          .from("transactions")
-          .update({ 
-            status: transaction.status,
-            wompi_transaction_id: transaction.id,
-            payment_method: transaction.paymentMethod?.type,
-          })
-          .eq("reference", reference);
-        
+        // Update transaction status via API
+        await api.transactions.update({
+          reference: reference,
+          status: transaction.status,
+          wompi_transaction_id: transaction.id,
+          payment_method: transaction.paymentMethod?.type,
+        });
+
         if (transaction.status === 'APPROVED') {
           toast({
             title: "¡Pago exitoso!",
             description: `Tu plan ${pendingPlanName} ha sido renovado.`,
           });
-          
-          // Refresh transactions
-          const { data: txData } = await supabase
-            .from("transactions")
-            .select("*")
-            .eq("user_id", session.session.user.id)
-            .order("created_at", { ascending: false });
 
+          // Refresh transactions
+          const txData = await api.transactions.list();
           setTransactions((txData as Transaction[]) || []);
           setRenewModal(false);
           
@@ -832,8 +713,8 @@ const Dashboard = () => {
     setRenewLoading(true);
 
     try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session.session) return;
+      const user = getUser();
+      if (!user) return;
 
       const monthlyPricesUSD: Record<string, number> = {
         starter: 15, mini: 29, basico: 59, plus: 99, enterprise: 199
@@ -868,18 +749,15 @@ const Dashboard = () => {
 
       const basePlanName = planDisplayNames[selectedPlan.package] || selectedPlan.package;
 
-      const { data, error } = await supabase.functions.invoke('paypal-create-subscription', {
-        body: {
-          plan_name: basePlanName,
-          billing_period: selectedPlan.plan,
-          amount_usd: discountedMonthly,
-          user_id: session.session.user.id,
-          return_url: `${window.location.origin}/dashboard?paypal=success`,
-          cancel_url: `${window.location.origin}/dashboard?paypal=cancelled`,
-        },
+      const data = await api.payments.paypalCreateSubscription({
+        plan_name: basePlanName,
+        billing_period: selectedPlan.plan,
+        amount_usd: discountedMonthly,
+        user_id: user.id,
+        return_url: `${window.location.origin}/dashboard?paypal=success`,
+        cancel_url: `${window.location.origin}/dashboard?paypal=cancelled`,
       });
 
-      if (error) throw new Error('Error al crear suscripción PayPal');
       if (!data?.approval_url) throw new Error('No se recibió URL de aprobación');
 
       window.open(data.approval_url, '_blank');
@@ -899,15 +777,15 @@ const Dashboard = () => {
   const handleTokenizeCard = async () => {
     if (!profile) return;
 
-    const { data: session } = await supabase.auth.getSession();
-    if (!session.session) return;
+    const user = getUser();
+    if (!user) return;
 
     setTokenizingCard(true);
 
     try {
       // Get Wompi public key
-      const { data: signatureData } = await supabase.functions.invoke('wompi-signature', {
-        body: { reference: 'temp', amountInCents: 100, currency: 'COP' },
+      const signatureData = await api.payments.wompiSignature({
+        reference: 'temp', amountInCents: 100, currency: 'COP'
       });
 
       // Open Wompi widget in tokenization mode
@@ -929,33 +807,31 @@ const Dashboard = () => {
 
       checkout.open(async (result: any) => {
         console.log('Tokenization result:', result);
-        
+
         if (result.token && result.token.id) {
           // Send token to backend to create payment source and subscription
           const billingPeriod = pendingPlanName.toLowerCase().includes('anual') ? 'anual' : pendingPlanName.toLowerCase().includes('semestral') ? 'semestral' : 'mensual';
-          
-          const { data: tokenizeData, error: tokenizeError } = await supabase.functions.invoke('tokenize-card', {
-            body: {
+
+          try {
+            const tokenizeData = await api.payments.tokenizeCard({
               card_token: result.token.id,
               plan_name: pendingPlanName,
               amount: pendingPaymentAmount,
               currency: 'COP',
               billing_period: billingPeriod,
-            },
-          });
+            });
 
-          if (tokenizeError) {
+            setActiveSubscription(tokenizeData.subscription);
+            toast({
+              title: "¡Tarjeta guardada!",
+              description: "Tu plan se comprará automáticamente cada mes.",
+            });
+          } catch (tokenizeError) {
             console.error('Tokenization error:', tokenizeError);
             toast({
               title: "Error",
               description: "No se pudo guardar la tarjeta para cobro automático.",
               variant: "destructive",
-            });
-          } else {
-            setActiveSubscription(tokenizeData.subscription);
-            toast({
-              title: "¡Tarjeta guardada!",
-              description: "Tu plan se comprará automáticamente cada mes.",
             });
           }
         }
@@ -1036,9 +912,7 @@ const Dashboard = () => {
           {/* Welcome */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">
-              {t('dash.hello')}, {profile?.account_type === "empresa" 
-                ? profile.company_name 
-                : `${profile?.first_name} ${profile?.last_name}`}
+              {t('dash.hello')}, {profile?.user?.name}
             </h1>
             <p className="text-muted-foreground">
               {t('dash.welcome')}
@@ -1053,8 +927,8 @@ const Dashboard = () => {
               className="mb-8"
             >
               <Button
-                variant="hero"
-                size="xl"
+                variant="default"
+                size="lg"
                 className="w-full text-lg font-bold py-6 animate-pulse hover:animate-none"
                 onClick={() => setConfigAgentModal(true)}
               >
@@ -1078,7 +952,7 @@ const Dashboard = () => {
                   Si ya lo hiciste, ingresa directamente:
                 </p>
                 <Button
-                  variant="hero"
+                  variant="default"
                   size="lg"
                   className="w-full"
                   onClick={() => window.open('https://www.ia.soyagentia.com/authentication/login', '_blank')}
@@ -1105,7 +979,7 @@ const Dashboard = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                      {profile?.account_type === "empresa" ? (
+                      {profile?.company ? (
                         <Building2 className="w-8 h-8 text-primary-foreground" />
                       ) : (
                         <User className="w-8 h-8 text-primary-foreground" />
@@ -1113,15 +987,17 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <h2 className="text-xl font-semibold">
-                        {profile?.account_type === "empresa" ? profile.company_name : `${profile?.first_name} ${profile?.last_name}`}
+                        {profile?.user?.name}
                       </h2>
-                      <p className="text-muted-foreground capitalize">{profile?.account_type}</p>
+                      {profile?.company?.name && (
+                        <p className="text-muted-foreground">{profile.company.name}</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <Dialog open={renewModal} onOpenChange={setRenewModal}>
                       <DialogTrigger asChild>
-                        <Button variant="hero">
+                        <Button variant="default">
                           <CreditCard className="w-4 h-4 mr-2" />
                           {t('dash.buyPlan')}
                         </Button>
@@ -1254,7 +1130,7 @@ const Dashboard = () => {
                             </div>
                           )}
                           
-                          <Button onClick={initiateRenewSubscription} className="w-full" variant="hero" disabled={renewLoading || (hasPurchasedPlanTest && selectedPlan.package === 'plan test')}>
+                          <Button onClick={initiateRenewSubscription} className="w-full" variant="default" disabled={renewLoading || (hasPurchasedPlanTest && selectedPlan.package === 'plan test')}>
                             {renewLoading ? (
                               <>
                                 <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />
@@ -1287,7 +1163,7 @@ const Dashboard = () => {
                   </div>
                   <DashboardShowcase />
                   <div className="text-center mt-6">
-                    <Button variant="hero" size="lg" onClick={() => setRenewModal(true)}>
+                    <Button variant="default" size="lg" onClick={() => setRenewModal(true)}>
                       <CreditCard className="w-5 h-5 mr-2" />
                       {t('dash.buyPlanNow')}
                     </Button>
@@ -1335,7 +1211,7 @@ const Dashboard = () => {
                         {t('dash.updateCardMsg')}
                       </p>
                       <Button 
-                        variant="hero" 
+                        variant="default" 
                         onClick={() => {
                           setPendingPlanName(activeSubscription.plan_name);
                           setPendingPaymentAmount(activeSubscription.amount);
@@ -1707,112 +1583,66 @@ const Dashboard = () => {
                       <DialogHeader>
                         <DialogTitle>{t('dash.editProfile')}</DialogTitle>
                       </DialogHeader>
-                      <div className="space-y-4 pt-4 max-h-[60vh] overflow-y-auto">
-                        {profile?.account_type === "persona" ? (
-                          <>
-                            <div>
-                              <Label>{t('dash.name')}</Label>
-                              <Input 
-                                value={editForm.first_name} 
-                                onChange={(e) => setEditForm(prev => ({ ...prev, first_name: e.target.value }))}
-                                className="mt-1"
-                              />
-                            </div>
-                            <div>
-                              <Label>{t('dash.lastName')}</Label>
-                              <Input 
-                                value={editForm.last_name} 
-                                onChange={(e) => setEditForm(prev => ({ ...prev, last_name: e.target.value }))}
-                                className="mt-1"
-                              />
-                            </div>
-                            <div>
-                              <Label>{t('dash.docType')}</Label>
-                              <Select 
-                                value={editForm.document_type} 
-                                onValueChange={(val) => setEditForm(prev => ({ ...prev, document_type: val }))}
-                              >
-                                <SelectTrigger className="mt-1">
-                                  <SelectValue placeholder={t('dash.selectType')} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
-                                  <SelectItem value="CE">Cédula de Extranjería</SelectItem>
-                                  <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
-                                  <SelectItem value="PP">Pasaporte</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label>{t('dash.docNumber')}</Label>
-                              <Input 
-                                value={editForm.document_number} 
-                                onChange={(e) => setEditForm(prev => ({ ...prev, document_number: e.target.value }))}
-                                className="mt-1"
-                                placeholder={t('dash.enterDocNumber')}
-                              />
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div>
-                              <Label>{t('dash.companyName')}</Label>
-                              <Input 
-                                value={editForm.company_name} 
-                                onChange={(e) => setEditForm(prev => ({ ...prev, company_name: e.target.value }))}
-                                className="mt-1"
-                              />
-                            </div>
-                            <div>
-                              <Label>{t('dash.nit')}</Label>
-                              <Input 
-                                value={editForm.nit} 
-                                onChange={(e) => setEditForm(prev => ({ ...prev, nit: e.target.value }))}
-                                className="mt-1"
-                              />
-                            </div>
-                            <div>
-                              <Label>{t('dash.contactName')}</Label>
-                              <Input 
-                                value={editForm.contact_name} 
-                                onChange={(e) => setEditForm(prev => ({ ...prev, contact_name: e.target.value }))}
-                                className="mt-1"
-                              />
-                            </div>
-                          </>
-                        )}
+                      <div className="space-y-4 pt-4">
                         <div>
-                          <Label>{t('dash.country') || 'País'}</Label>
-                          <CountrySelect
-                            value={editForm.country}
-                            onValueChange={(val) => setEditForm(prev => ({ ...prev, country: val }))}
+                          <Label>{t('dash.name')}</Label>
+                          <Input
+                            value={editForm.name}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
                             className="mt-1"
                           />
                         </div>
                         <div>
                           <Label>{t('dash.phone')}</Label>
-                          <Input 
-                            value={editForm.phone} 
+                          <Input
+                            value={editForm.phone}
                             onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
                             className="mt-1"
                           />
                         </div>
                         <div>
-                          <Label>{t('dash.city')}</Label>
-                          <Input 
-                            value={editForm.city} 
-                            onChange={(e) => setEditForm(prev => ({ ...prev, city: e.target.value }))}
-                            className="mt-1"
-                          />
-                        </div>
-                        <div>
                           <Label>{t('dash.address')}</Label>
-                          <Input 
-                            value={editForm.address} 
+                          <Input
+                            value={editForm.address}
                             onChange={(e) => setEditForm(prev => ({ ...prev, address: e.target.value }))}
                             className="mt-1"
                           />
                         </div>
+                        {profile?.company?.accountType === 'persona' ? (
+                          <>
+                            <div>
+                              <Label>{t('dash.docType')}</Label>
+                              <select
+                                value={editForm.documentType}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, documentType: e.target.value }))}
+                                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              >
+                                <option value="">{t('dash.selectType')}</option>
+                                <option value="CC">Cédula de Ciudadanía</option>
+                                <option value="CE">Cédula de Extranjería</option>
+                                <option value="Pasaporte">Pasaporte</option>
+                              </select>
+                            </div>
+                            <div>
+                              <Label>{t('dash.docNumber')}</Label>
+                              <Input
+                                value={editForm.documentNumber}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, documentNumber: e.target.value }))}
+                                placeholder={t('dash.enterDocNumber')}
+                                className="mt-1"
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <div>
+                            <Label>{t('dash.nit')}</Label>
+                            <Input
+                              value={editForm.nit}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, nit: e.target.value }))}
+                              className="mt-1"
+                            />
+                          </div>
+                        )}
                         <Button onClick={handleUpdateProfile} className="w-full">
                           {t('dash.saveChanges')}
                         </Button>
@@ -1825,60 +1655,41 @@ const Dashboard = () => {
                   <div className="space-y-4">
                     <div>
                       <span className="text-muted-foreground text-sm">{t('dash.email')}</span>
-                      <p className="font-medium">{profile?.email}</p>
+                      <p className="font-medium">{profile?.user?.email || "-"}</p>
                     </div>
-                    {profile?.account_type === "persona" ? (
-                      <>
-                        <div>
-                          <span className="text-muted-foreground text-sm">{t('dash.name')}</span>
-                          <p className="font-medium">{profile?.first_name || "-"}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground text-sm">{t('dash.lastName')}</span>
-                          <p className="font-medium">{profile?.last_name || "-"}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground text-sm">{t('dash.docType')}</span>
-                          <p className="font-medium">{profile?.document_type || "-"}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground text-sm">{t('dash.docNumber')}</span>
-                          <p className="font-medium">{profile?.document_number || "-"}</p>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div>
-                          <span className="text-muted-foreground text-sm">{t('dash.company')}</span>
-                          <p className="font-medium">{profile?.company_name || "-"}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground text-sm">{t('dash.nit')}</span>
-                          <p className="font-medium">{profile?.nit || "-"}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground text-sm">{t('dash.contact')}</span>
-                          <p className="font-medium">{profile?.contact_name || "-"}</p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <div className="space-y-4">
                     <div>
-                      <span className="text-muted-foreground text-sm">{t('dash.country') || 'País'}</span>
-                      <p className="font-medium">{profile?.country || "-"}</p>
+                      <span className="text-muted-foreground text-sm">{t('dash.name')}</span>
+                      <p className="font-medium">{profile?.user?.name || "-"}</p>
                     </div>
+                    {profile?.company?.accountType === 'persona' && profile?.user?.documentType && profile?.user?.documentNumber && (
+                    <div>
+                      <span className="text-muted-foreground text-sm">{t('dash.document')}</span>
+                      <p className="font-medium">{profile.user.documentType} {profile.user.documentNumber}</p>
+                    </div>
+                    )}
                     <div>
                       <span className="text-muted-foreground text-sm">{t('dash.phone')}</span>
-                      <p className="font-medium">{profile?.phone || "-"}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-sm">{t('dash.city')}</span>
-                      <p className="font-medium">{profile?.city || "-"}</p>
+                      <p className="font-medium">{profile?.user?.phone || "-"}</p>
                     </div>
                     <div>
                       <span className="text-muted-foreground text-sm">{t('dash.address')}</span>
-                      <p className="font-medium">{profile?.address || "-"}</p>
+                      <p className="font-medium">{profile?.user?.address || "-"}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-muted-foreground text-sm">{t('dash.company')}</span>
+                      <p className="font-medium">{profile?.company?.name || "-"}</p>
+                    </div>
+                    {profile?.company?.accountType === 'empresa' && (
+                    <div>
+                      <span className="text-muted-foreground text-sm">{t('dash.nit')}</span>
+                      <p className="font-medium">{profile?.company?.nit || "-"}</p>
+                    </div>
+                    )}
+                    <div>
+                      <span className="text-muted-foreground text-sm">{t('dash.memberSince') || 'Miembro desde'}</span>
+                      <p className="font-medium">{profile?.company?.entryDate ? format(new Date(profile.company.entryDate), "dd MMM yyyy", { locale: dateLocale }) : "-"}</p>
                     </div>
                   </div>
                 </div>
@@ -2147,7 +1958,7 @@ const Dashboard = () => {
               <Button variant="outline" onClick={() => setConfirmPaymentModal(false)}>
                 {t('dash.cancel')}
               </Button>
-              <Button variant="hero" onClick={handleConfirmRenewSubscription} disabled={renewLoading}>
+              <Button variant="default" onClick={handleConfirmRenewSubscription} disabled={renewLoading}>
                 {renewLoading ? (
                   <>
                     <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />
@@ -2198,7 +2009,7 @@ const Dashboard = () => {
               <Button variant="outline" onClick={() => setTokenizeModal(false)}>
                 {t('dash.noThanks')}
               </Button>
-              <Button variant="hero" onClick={handleTokenizeCard} disabled={tokenizingCard}>
+              <Button variant="default" onClick={handleTokenizeCard} disabled={tokenizingCard}>
                 {tokenizingCard ? (
                   <>
                     <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />

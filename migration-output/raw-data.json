@@ -1,0 +1,259 @@
+{
+  "profiles": [],
+  "transactions": [],
+  "subscriptions": [],
+  "tickets": [],
+  "ticketMessages": [],
+  "commissions": [],
+  "paypalPlans": [
+    {
+      "id": "21d8c8c3-b5b7-4886-bc7a-94d8bcf493ca",
+      "plan_name": "Plan Test",
+      "billing_period": "mensual",
+      "paypal_product_id": "PROD-6R960792AW5475805",
+      "paypal_plan_id": "P-3RN32240C8045573FNGYFVHQ",
+      "amount_usd": 0.39,
+      "created_at": "2026-03-10T17:53:35.165127+00:00"
+    },
+    {
+      "id": "2ba6381e-6279-483e-8183-09a2d4973a3c",
+      "plan_name": "Plan test",
+      "billing_period": "mensual",
+      "paypal_product_id": "PROD-6R960792AW5475805",
+      "paypal_plan_id": "P-8AJ565557V481050GNGYGEHI",
+      "amount_usd": 29.9,
+      "created_at": "2026-03-10T18:25:33.769132+00:00"
+    },
+    {
+      "id": "80961987-6de6-4d33-8f48-0ae0454ce258",
+      "plan_name": "Starter",
+      "billing_period": "mensual",
+      "paypal_product_id": "PROD-6R960792AW5475805",
+      "paypal_plan_id": "P-1VV05136X0444504CNGYYUMA",
+      "amount_usd": 15,
+      "created_at": "2026-03-11T15:28:48.976075+00:00"
+    },
+    {
+      "id": "4551b446-08eb-4317-af85-4cd046af075d",
+      "plan_name": "test",
+      "billing_period": "mensual",
+      "paypal_product_id": "PROD-6R960792AW5475805",
+      "paypal_plan_id": "P-5DE17596465271401NGY34VA",
+      "amount_usd": 1,
+      "created_at": "2026-03-11T19:11:16.578294+00:00"
+    }
+  ],
+  "trmRates": [
+    {
+      "id": "471f6278-8b5e-4a44-81ad-988b627bc56b",
+      "rate": 3688.46,
+      "rate_with_commission": 3835.9984,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-03-26T00:00:00.95+00:00"
+    },
+    {
+      "id": "18c74622-a34f-46cc-bc25-ff0845eaeb6a",
+      "rate": 3688.46,
+      "rate_with_commission": 3835.9984,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-03-26T12:00:01.755+00:00"
+    },
+    {
+      "id": "3d6dbbd5-c81e-47d8-8c24-8f393ea6f619",
+      "rate": 3675.29,
+      "rate_with_commission": 3822.3016000000002,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-03-27T00:00:01.038+00:00"
+    },
+    {
+      "id": "778824a4-f73b-49a5-b827-6700b5bcbedb",
+      "rate": 3675.29,
+      "rate_with_commission": 3822.3016000000002,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-03-27T12:00:00.918+00:00"
+    },
+    {
+      "id": "fbc00e07-a2d1-4908-937b-a2a2f104eebd",
+      "rate": 3668.89,
+      "rate_with_commission": 3815.6456,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-03-28T00:00:04.601+00:00"
+    },
+    {
+      "id": "e2917e24-7f5b-4707-8e5a-488e0aa0c901",
+      "rate": 3668.89,
+      "rate_with_commission": 3815.6456,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-03-28T12:00:02.88+00:00"
+    },
+    {
+      "id": "49bf02e6-f6e3-4d3d-ad7c-7f300ca21b70",
+      "rate": 3668.89,
+      "rate_with_commission": 3815.6456,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-03-29T00:00:05.954+00:00"
+    },
+    {
+      "id": "0b284936-1224-4d83-bff6-eb71c9a8c61c",
+      "rate": 3668.89,
+      "rate_with_commission": 3815.6456,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-03-29T12:00:00.663+00:00"
+    },
+    {
+      "id": "227a42b0-bd16-4a8d-818d-0fc7bcb68c6c",
+      "rate": 3668.89,
+      "rate_with_commission": 3815.6456,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-03-30T00:00:02.892+00:00"
+    },
+    {
+      "id": "52072326-23a6-40d2-8dd9-2c4275325bcb",
+      "rate": 3668.89,
+      "rate_with_commission": 3815.6456,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-03-30T12:00:02.763+00:00"
+    },
+    {
+      "id": "056f0553-3d37-4ab1-bc1c-1c05c1943e40",
+      "rate": 3669.96,
+      "rate_with_commission": 3816.7584,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-03-31T00:00:01.679+00:00"
+    },
+    {
+      "id": "d81f7d8f-112a-4482-88d8-9a4227f61468",
+      "rate": 3669.96,
+      "rate_with_commission": 3816.7584,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-03-31T12:00:03.193+00:00"
+    },
+    {
+      "id": "9d4d3163-0109-4fc4-80f8-1e317fae5a28",
+      "rate": 3660.1,
+      "rate_with_commission": 3806.504,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-01T00:00:00.711+00:00"
+    },
+    {
+      "id": "759c6fc6-438f-4e90-a86b-9f241fdb753e",
+      "rate": 3660.1,
+      "rate_with_commission": 3806.504,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-01T12:00:01.43+00:00"
+    },
+    {
+      "id": "3b04f03c-6726-4be8-89c3-36cb7490d683",
+      "rate": 3675.81,
+      "rate_with_commission": 3822.8424,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-02T00:00:01.05+00:00"
+    },
+    {
+      "id": "650de3ef-8c65-415d-bcb5-06afa6e41322",
+      "rate": 3675.81,
+      "rate_with_commission": 3822.8424,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-02T12:00:01.098+00:00"
+    },
+    {
+      "id": "ee56a551-cffd-4f6b-9e59-fc85e25bef51",
+      "rate": 3675.81,
+      "rate_with_commission": 3822.8424,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-03T00:00:00.512+00:00"
+    },
+    {
+      "id": "90418ad3-ed41-433f-94e4-c1843165cd30",
+      "rate": 3675.81,
+      "rate_with_commission": 3822.8424,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-03T12:00:00.745+00:00"
+    },
+    {
+      "id": "a07cb663-0cea-4d96-9625-640f898f2204",
+      "rate": 3675.81,
+      "rate_with_commission": 3822.8424,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-04T00:00:01.939+00:00"
+    },
+    {
+      "id": "35856b3c-9678-4908-9d53-7fc693400544",
+      "rate": 3675.81,
+      "rate_with_commission": 3822.8424,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-04T12:00:01.387+00:00"
+    },
+    {
+      "id": "e0f21a5a-cba9-40db-b3d6-6dafc5ba5190",
+      "rate": 3675.81,
+      "rate_with_commission": 3822.8424,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-05T00:00:03.197+00:00"
+    },
+    {
+      "id": "629dc158-525d-4c9b-ba0e-3f6e4ddf0f01",
+      "rate": 3675.81,
+      "rate_with_commission": 3822.8424,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-05T12:00:03.271+00:00"
+    },
+    {
+      "id": "6c9c955c-5bb2-400c-985e-739eedf7821e",
+      "rate": 3675.81,
+      "rate_with_commission": 3822.8424,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-06T00:00:00.689+00:00"
+    },
+    {
+      "id": "23131ebf-ec6b-48da-8bfe-d27bb4d5ff19",
+      "rate": 3675.81,
+      "rate_with_commission": 3822.8424,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-06T12:00:00.842+00:00"
+    },
+    {
+      "id": "feb3df86-f39e-4dc7-8565-8b6fe5eb7ad7",
+      "rate": 3664.41,
+      "rate_with_commission": 3810.9864,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-07T00:00:01.572+00:00"
+    },
+    {
+      "id": "0add8523-aa2e-4712-b2c9-049f35959242",
+      "rate": 3664.41,
+      "rate_with_commission": 3810.9864,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-07T12:00:03.997+00:00"
+    },
+    {
+      "id": "22a55dc3-e274-43bf-bf21-936ba2cccb6d",
+      "rate": 3678.19,
+      "rate_with_commission": 3825.3176000000003,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-08T00:00:01.654+00:00"
+    },
+    {
+      "id": "bc97c287-2398-42bd-98a3-fd86ff1829cd",
+      "rate": 3678.19,
+      "rate_with_commission": 3825.3176000000003,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-08T12:00:01.973+00:00"
+    },
+    {
+      "id": "882712d7-315f-497a-b674-2927206f2da7",
+      "rate": 3640.63,
+      "rate_with_commission": 3786.2552,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-09T00:00:01.628+00:00"
+    },
+    {
+      "id": "0c41bfa3-3d01-430d-a746-22e9d114d498",
+      "rate": 3640.63,
+      "rate_with_commission": 3786.2552,
+      "source": "datos.gov.co",
+      "fetched_at": "2026-04-09T12:00:00.229+00:00"
+    }
+  ],
+  "userRoles": []
+}
