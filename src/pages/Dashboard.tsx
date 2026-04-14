@@ -156,6 +156,7 @@ const Dashboard = () => {
     country: "",
   });
   const [invoiceErrors, setInvoiceErrors] = useState<string[]>([]);
+  const [pendingPaymentAfterEdit, setPendingPaymentAfterEdit] = useState(false);
   const getFieldError = (field: string): string | null => {
     const isEmpresa = profile?.company?.accountType === 'empresa';
     switch (field) {
@@ -687,6 +688,17 @@ const Dashboard = () => {
       } : null);
       setInvoiceErrors([]);
       setEditProfileModal(false);
+
+      // Si venía de validación de pago, continuar automáticamente
+      if (pendingPaymentAfterEdit) {
+        setPendingPaymentAfterEdit(false);
+        toast({
+          title: "Datos guardados",
+          description: "Procesando tu pago...",
+        });
+        // Pequeño delay para que el perfil se actualice en el state
+        setTimeout(() => initiateRenewSubscription(), 500);
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -885,10 +897,11 @@ const Dashboard = () => {
       const validation = await api.payments.validateInvoiceData();
       if (validation && !validation.valid) {
         setInvoiceErrors(validation.errors || []);
+        setPendingPaymentAfterEdit(true);
         setEditProfileModal(true);
         toast({
           title: "Datos de facturación incompletos",
-          description: "Por favor completa los datos marcados antes de realizar el pago.",
+          description: "Completa los datos y guarda para continuar con el pago.",
           variant: "destructive",
         });
         return;
@@ -2238,7 +2251,7 @@ const Dashboard = () => {
                           </div>
                         )}
                         <Button onClick={handleUpdateProfile} className="w-full" disabled={!isEditFormValid()}>
-                          {t('dash.saveChanges')}
+                          {pendingPaymentAfterEdit ? 'Guardar y continuar con el pago' : t('dash.saveChanges')}
                         </Button>
                       </div>
                     </DialogContent>

@@ -11,10 +11,30 @@ import FinancialDashboard from "@/components/FinancialDashboard";
 import PaymentMethodSelector from "@/components/PaymentMethodSelector";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { Label } from "@/components/ui/label";
+import CountrySelect from "@/components/CountrySelect";
 import { api, isAuthenticated, getUser, logout as apiLogout } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { differenceInDays, startOfMonth, endOfMonth, format, isBefore, addDays, addMonths, parseISO, subMonths, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
+
+function validateNitDv(nit: string): { valid: boolean; error?: string } {
+  const clean = nit.replace(/[.\s]/g, '');
+  if (!clean) return { valid: false, error: 'El NIT es obligatorio' };
+  if (!clean.includes('-')) return { valid: false, error: 'Debe incluir el dígito de verificación (ej: 901976734-4)' };
+  const parts = clean.split('-');
+  if (parts.length !== 2 || !parts[1]) return { valid: false, error: 'Formato inválido. Usa: número-DV' };
+  const base = parts[0];
+  const dvProvided = parseInt(parts[1]);
+  if (isNaN(dvProvided) || !/^\d+$/.test(base)) return { valid: false, error: 'Solo debe contener números' };
+  const primes = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
+  let sum = 0;
+  const digits = base.split('').reverse();
+  for (let i = 0; i < digits.length; i++) { sum += parseInt(digits[i]) * primes[i]; }
+  const remainder = sum % 11;
+  const dvCalc = remainder >= 2 ? 11 - remainder : remainder;
+  if (dvCalc !== dvProvided) return { valid: false, error: `Dígito incorrecto. Debería ser ${dvCalc}` };
+  return { valid: true };
+}
 
 interface Profile {
   id: number;
@@ -23,8 +43,13 @@ interface Profile {
   phone: string | null;
   city: string | null;
   address: string | null;
+  country: string | null;
   company_name: string | null;
   company_status: string | null;
+  account_type: string | null;
+  nit: string | null;
+  document_type: string | null;
+  document_number: string | null;
   role_conversia: string | null;
   id_company: number | null;
   id_role: number | null;
@@ -54,7 +79,7 @@ interface Transaction {
   transaction_id: string | null;
   payment_method: string | null;
   transaction_date: string | null;
-  status?: string;
+  status: string;
   type?: string;
   created_at: string;
 }
@@ -136,8 +161,7 @@ const Admin = () => {
   const [historyModal, setHistoryModal] = useState<{ open: boolean; profile: Profile | null }>({ open: false, profile: null });
   const [editingStartDate, setEditingStartDate] = useState<number | null>(null);
   const [tempStartDate, setTempStartDate] = useState<string>("");
-  const [newPaymentModal, setNewPaymentModal] = useState(false);
-  const [newPayment, setNewPayment] = useState({
+  const defaultNewPayment = {
     email: "",
     plan_name: "mensual",
     idPlan: 0,
@@ -149,8 +173,25 @@ const Admin = () => {
     transactionId: "",
     activatePlan: true,
     generateInvoice: false,
-  });
+  };
+  const [newPaymentModal, setNewPaymentModal] = useState(false);
+  const [newPayment, setNewPayment] = useState({ ...defaultNewPayment });
+
+  // Limpiar modal de pago cuando se cierra
+  useEffect(() => {
+    if (!newPaymentModal) {
+      setNewPayment({ ...defaultNewPayment, transactionDate: new Date().toISOString().split('T')[0] });
+      setShowClientEditInPayment(false);
+      setInvoiceDataErrors([]);
+    }
+  }, [newPaymentModal]);
   const [dbPlans, setDbPlans] = useState<any[]>([]);
+  const [invoiceDataErrors, setInvoiceDataErrors] = useState<string[]>([]);
+  const [showClientEditInPayment, setShowClientEditInPayment] = useState(false);
+  const [clientEditForm, setClientEditForm] = useState({
+    name: "", phone: "", address: "", city: "", country: "",
+    documentType: "", documentNumber: "", nit: "",
+  });
   const [creatingPayment, setCreatingPayment] = useState(false);
   const [syncingCommissions, setSyncingCommissions] = useState(false);
   const [commissionFilterYear, setCommissionFilterYear] = useState<string>(new Date().getFullYear().toString());
@@ -503,6 +544,59 @@ const Admin = () => {
     }
   };
 
+  const handleSaveClientData = async () => {
+    if (!newPayment.email) return;
+
+    const selectedProfile = profiles.find(p => p.email === newPayment.email);
+    if (!selectedProfile) return;
+    const isEmpresa = selectedProfile.account_type === 'empresa';
+    const isColombia = !clientEditForm.country || clientEditForm.country.toLowerCase() === 'colombia';
+
+    // Validar campos
+    const errors: string[] = [];
+    if (!clientEditForm.name || clientEditForm.name.trim().split(/\s+/).length < 2) errors.push('Nombre y apellido');
+    if (!clientEditForm.phone || clientEditForm.phone.replace(/\D/g, '').length < 7) errors.push('Teléfono válido');
+    if (!clientEditForm.address?.trim()) errors.push('Dirección');
+    if (!clientEditForm.city?.trim()) errors.push('Ciudad');
+    if (!clientEditForm.country?.trim()) errors.push('País');
+
+    if (isEmpresa) {
+      if (!clientEditForm.nit?.trim()) {
+        errors.push('NIT / Identificación fiscal');
+      } else if (isColombia && !validateNitDv(clientEditForm.nit).valid) {
+        errors.push(validateNitDv(clientEditForm.nit).error || 'NIT inválido');
+      }
+    } else {
+      if (!clientEditForm.documentType) errors.push('Tipo de documento');
+      if (!clientEditForm.documentNumber?.trim()) errors.push('Número de documento');
+    }
+
+    if (errors.length > 0) {
+      setInvoiceDataErrors(errors);
+      toast({ title: "Datos incompletos", description: errors.join(', '), variant: "destructive" });
+      return;
+    }
+
+    try {
+      await api.admin.updateProfile(String(selectedProfile.id), {
+        name: clientEditForm.name || null,
+        phone: clientEditForm.phone ? Number(clientEditForm.phone) : null,
+        address: clientEditForm.address || null,
+        documentType: clientEditForm.documentType || null,
+        documentNumber: clientEditForm.documentNumber || null,
+        nit: clientEditForm.nit || null,
+        city: clientEditForm.city || null,
+        country: clientEditForm.country || null,
+      });
+      toast({ title: "Datos actualizados", description: "Datos del cliente guardados." });
+      setShowClientEditInPayment(false);
+      setInvoiceDataErrors([]);
+      await loadData();
+    } catch (err) {
+      toast({ title: "Error", description: "No se pudieron guardar los datos.", variant: "destructive" });
+    }
+  };
+
   const handleCreatePayment = async () => {
     if (!newPayment.email || !newPayment.idPlan) {
       toast({
@@ -511,6 +605,45 @@ const Admin = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    // Si marcó generar factura, validar datos del cliente
+    if (newPayment.generateInvoice) {
+      const sp = profiles.find(p => p.email === newPayment.email);
+      const isEmpresa = sp?.account_type === 'empresa';
+      const isColombia = !((sp as any)?.company_country || sp?.country) || ((sp as any)?.company_country || sp?.country || '').toLowerCase() === 'colombia';
+      const errors: string[] = [];
+      const pCity = (sp as any)?.company_city || sp?.city;
+      const pCountry = (sp as any)?.company_country || sp?.country;
+      const pAddress = (sp as any)?.company_address || sp?.address;
+
+      if (!sp?.name || sp.name.trim().split(/\s+/).length < 2) errors.push('Nombre y apellido');
+      if (!sp?.phone || String(sp.phone).length < 7) errors.push('Teléfono');
+      if (!pAddress) errors.push('Dirección');
+      if (!pCity) errors.push('Ciudad');
+      if (!pCountry) errors.push('País');
+      if (isEmpresa) {
+        if (!sp?.nit) {
+          errors.push('NIT / Identificación fiscal');
+        } else if (isColombia && !validateNitDv(sp.nit).valid) {
+          errors.push(validateNitDv(sp.nit).error || 'NIT inválido');
+        }
+      } else {
+        if (!sp?.document_type) errors.push('Tipo de documento');
+        if (!sp?.document_number) errors.push('Número de documento');
+      }
+
+      if (errors.length > 0) {
+        setInvoiceDataErrors(errors);
+        setClientEditForm({
+          name: sp?.name || "", phone: sp?.phone ? String(sp.phone) : "",
+          address: pAddress || "", city: pCity || "", country: pCountry || "",
+          documentType: sp?.document_type || "", documentNumber: sp?.document_number || "",
+          nit: sp?.nit || "",
+        });
+        setShowClientEditInPayment(true);
+        return;
+      }
     }
 
     setCreatingPayment(true);
@@ -2527,7 +2660,12 @@ const Admin = () => {
             <div className="flex gap-3 pt-2">
               <Button
                 variant="outline"
-                onClick={() => setNewPaymentModal(false)}
+                onClick={() => {
+                  setNewPaymentModal(false);
+                  setNewPayment({ email: "", plan_name: "mensual", idPlan: 0, amount: 0, currency: "COP", payment_method: "manual", status: "APPROVED", transactionDate: new Date().toISOString().split('T')[0], transactionId: "", activatePlan: true, generateInvoice: false });
+                  setShowClientEditInPayment(false);
+                  setInvoiceDataErrors([]);
+                }}
                 className="flex-1"
               >
                 Cancelar
@@ -2540,6 +2678,103 @@ const Admin = () => {
                 {creatingPayment ? "Registrando..." : "Registrar Pago"}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Client Data Edit Modal (for invoice) */}
+      <Dialog open={showClientEditInPayment} onOpenChange={(open) => { if (!open) { setShowClientEditInPayment(false); setInvoiceDataErrors([]); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-primary" />
+              Completar datos del cliente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 mb-2">
+            <p className="text-sm font-medium text-destructive mb-1">Datos faltantes para facturación:</p>
+            <ul className="text-xs text-destructive/80">
+              {invoiceDataErrors.map((e, i) => <li key={i}>• {e}</li>)}
+            </ul>
+          </div>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Nombre y apellido</Label>
+                <Input value={clientEditForm.name} onChange={(e) => setClientEditForm(prev => ({ ...prev, name: e.target.value }))} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Teléfono</Label>
+                <Input value={clientEditForm.phone} onChange={(e) => setClientEditForm(prev => ({ ...prev, phone: e.target.value }))} className="mt-1" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Dirección</Label>
+              <Input value={clientEditForm.address} onChange={(e) => setClientEditForm(prev => ({ ...prev, address: e.target.value }))} className="mt-1" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Ciudad</Label>
+                <Input value={clientEditForm.city} onChange={(e) => setClientEditForm(prev => ({ ...prev, city: e.target.value }))} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">País</Label>
+                <CountrySelect value={clientEditForm.country} onValueChange={(val) => setClientEditForm(prev => ({ ...prev, country: val }))} />
+              </div>
+            </div>
+            {(() => {
+              const sp = profiles.find(p => p.email === newPayment.email);
+              const isEmpresa = sp?.account_type === 'empresa';
+              const isColombia = !clientEditForm.country || clientEditForm.country.toLowerCase() === 'colombia';
+              if (isEmpresa) return (
+                <div>
+                  <Label className="text-xs">{isColombia ? 'NIT (con dígito de verificación)' : 'Identificación fiscal'}</Label>
+                  <Input
+                    value={clientEditForm.nit}
+                    onChange={(e) => setClientEditForm(prev => ({ ...prev, nit: e.target.value }))}
+                    placeholder={isColombia ? 'Ej: 901976734-4' : 'Número de identificación fiscal'}
+                    className={`mt-1 ${isColombia && clientEditForm.nit && !validateNitDv(clientEditForm.nit).valid ? 'border-destructive' : isColombia && clientEditForm.nit && validateNitDv(clientEditForm.nit).valid ? 'border-green-500' : ''}`}
+                  />
+                  {isColombia && clientEditForm.nit && !validateNitDv(clientEditForm.nit).valid && (
+                    <p className="text-xs text-destructive mt-1">{validateNitDv(clientEditForm.nit).error}</p>
+                  )}
+                  {isColombia && clientEditForm.nit && validateNitDv(clientEditForm.nit).valid && (
+                    <p className="text-xs text-green-500 mt-1">NIT válido</p>
+                  )}
+                </div>
+              );
+              return (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Tipo documento</Label>
+                    <select value={clientEditForm.documentType} onChange={(e) => setClientEditForm(prev => ({ ...prev, documentType: e.target.value }))} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                      <option value="">Seleccionar</option>
+                      {isColombia ? (
+                        <>
+                          <option value="CC">Cédula de Ciudadanía</option>
+                          <option value="CE">Cédula de Extranjería</option>
+                          <option value="TI">Tarjeta de Identidad</option>
+                          <option value="PP">Pasaporte</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="PP">Pasaporte</option>
+                          <option value="DNI">DNI / Documento Nacional</option>
+                          <option value="CE">Documento de Extranjería</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Número documento</Label>
+                    <Input value={clientEditForm.documentNumber} onChange={(e) => setClientEditForm(prev => ({ ...prev, documentNumber: e.target.value }))} className="mt-1" />
+                  </div>
+                </div>
+              );
+            })()}
+            <Button onClick={handleSaveClientData} className="w-full">
+              Guardar y continuar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
