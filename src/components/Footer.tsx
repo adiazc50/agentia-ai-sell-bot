@@ -1,4 +1,5 @@
 import { MapPin, Phone, Instagram, Mail } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const Footer = () => {
@@ -62,6 +63,14 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-border/50 pt-8 text-center">
+          <div className="flex justify-center gap-6 mb-4">
+            <Link to="/privacidad" className="text-sm text-muted-foreground hover:text-accent transition-colors">
+              {t("footer.privacyPolicy")}
+            </Link>
+            <Link to="/terminos" className="text-sm text-muted-foreground hover:text-accent transition-colors">
+              {t("footer.termsOfService")}
+            </Link>
+          </div>
           <p className="text-muted-foreground text-sm">
             © {currentYear} Agent IA SAS - SoyAgentia. {t("footer.rights")}
           </p>

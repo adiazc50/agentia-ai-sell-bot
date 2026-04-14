@@ -7,7 +7,7 @@ import SEOHead from "@/components/SEOHead";
 const TermsAndConditions = () => {
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead />
+      <SEOHead title="Términos y Condiciones - Agent IA SAS" description="Términos y Condiciones de Uso de Agent IA SAS (SoyAgentia)." />
       <Navbar />
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4 max-w-4xl">
@@ -88,7 +88,25 @@ const TermsAndConditions = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">7. TRATAMIENTO DE DATOS PERSONALES</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">7. CUMPLIMIENTO DE POLÍTICAS DE TIKTOK</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                7.1. El Usuario reconoce y acepta que el uso de las funcionalidades de integración con TikTok está sujeto al cumplimiento de las políticas, términos de servicio y directrices de uso de TikTok (ByteDance Ltd.), incluyendo pero no limitado a:<br /><br />
+                • <strong className="text-foreground">Términos de Servicio para Desarrolladores de TikTok</strong><br />
+                • <strong className="text-foreground">Política de Privacidad de TikTok</strong><br />
+                • <strong className="text-foreground">Directrices de Uso de la API de TikTok for Business</strong><br />
+                • <strong className="text-foreground">Política de Datos de TikTok para Desarrolladores</strong><br /><br />
+                7.2. Agent IA utiliza la API de TikTok for Business exclusivamente para:<br />
+                • Permitir al Usuario gestionar mensajes directos de su cuenta de TikTok Business<br />
+                • Automatizar respuestas a mensajes directos mediante el Agente de IA<br />
+                • Centralizar la gestión de conversaciones de múltiples plataformas (WhatsApp, Instagram, TikTok)<br /><br />
+                7.3. El Usuario es el ÚNICO responsable del contenido enviado a través de la integración con TikTok. Agent IA NO será responsable por la suspensión o restricción de la cuenta de TikTok del Usuario por incumplimiento de las políticas de TikTok.<br /><br />
+                7.4. Agent IA no almacena, vende ni comparte datos obtenidos a través de TikTok con terceros no autorizados. Los datos se utilizan exclusivamente para la prestación de los Servicios descritos en estos Términos.<br /><br />
+                7.5. El Usuario puede revocar el acceso de Agent IA a su cuenta de TikTok en cualquier momento desde la configuración de la Plataforma o desde la configuración de aplicaciones de TikTok.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-foreground mb-3">8. TRATAMIENTO DE DATOS PERSONALES</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 7.1. <strong className="text-foreground">Marco Legal:</strong> El tratamiento de datos personales se rige por la Ley 1581 de 2012 (Ley de Habeas Data), el Decreto 1377 de 2013 y demás normatividad colombiana aplicable en materia de protección de datos personales.<br /><br />
                 7.2. <strong className="text-foreground">Responsable del Tratamiento:</strong> Respecto a los datos del Usuario, AGENT IA SAS actúa como Responsable del Tratamiento. Respecto a los Datos del Cliente Final, el Usuario actúa como Responsable del Tratamiento y AGENT IA SAS como Encargado del Tratamiento.<br /><br />
@@ -109,7 +127,7 @@ const TermsAndConditions = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">8. OBLIGACIONES DEL USUARIO</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">9. OBLIGACIONES DEL USUARIO</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 El Usuario se obliga a:<br /><br />
                 a) Utilizar los Servicios conforme a la ley, la moral, el orden público y los presentes T&C.<br />
@@ -124,7 +142,7 @@ const TermsAndConditions = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">9. PLANES, PRECIOS Y FACTURACIÓN</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">10. PLANES, PRECIOS Y FACTURACIÓN</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 9.1. Los precios y características de cada Plan están detallados en la sección de precios de la Plataforma y pueden ser modificados por Agent IA con previo aviso de treinta (30) días calendario.<br /><br />
                 9.2. El pago de los Servicios se realiza de forma anticipada, conforme al ciclo de facturación seleccionado (mensual o anual). La falta de pago dentro de los cinco (5) días calendario siguientes al vencimiento facultará a Agent IA para suspender los Servicios sin previo aviso.<br /><br />
@@ -135,7 +153,7 @@ const TermsAndConditions = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">10. PROPIEDAD INTELECTUAL</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">11. PROPIEDAD INTELECTUAL</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 10.1. Todos los derechos de propiedad intelectual sobre la Plataforma, el software, los algoritmos de inteligencia artificial, la marca "Agent IA", el diseño, el código fuente y cualquier material relacionado son propiedad exclusiva de AGENT IA SAS o de sus licenciantes.<br /><br />
                 10.2. La contratación de los Servicios no otorga al Usuario ningún derecho de propiedad intelectual sobre los mismos, sino únicamente una licencia de uso limitada, no exclusiva, intransferible y revocable para la duración del Plan contratado.<br /><br />
@@ -144,7 +162,7 @@ const TermsAndConditions = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">11. LIMITACIÓN DE RESPONSABILIDAD</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">12. LIMITACIÓN DE RESPONSABILIDAD</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 11.1. Agent IA NO será responsable por:<br /><br />
                 a) Daños directos, indirectos, incidentales, especiales, consecuenciales o punitivos derivados del uso o la imposibilidad de uso de los Servicios.<br />
@@ -160,7 +178,7 @@ const TermsAndConditions = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">12. INDEMNIZACIÓN</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">13. INDEMNIZACIÓN</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 El Usuario se compromete a indemnizar, defender y mantener indemne a AGENT IA SAS, sus directores, empleados, contratistas y afiliados, frente a cualquier reclamación, demanda, responsabilidad, daño, pérdida, costo o gasto (incluyendo honorarios de abogados) que surjan de o estén relacionados con:<br /><br />
                 a) El incumplimiento de los presentes T&C por parte del Usuario.<br />
@@ -172,7 +190,7 @@ const TermsAndConditions = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">13. SUSPENSIÓN Y TERMINACIÓN</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">14. SUSPENSIÓN Y TERMINACIÓN</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 13.1. Agent IA podrá suspender o terminar el acceso a los Servicios, sin previo aviso y sin derecho a reembolso, en los siguientes casos:<br /><br />
                 a) Incumplimiento de los presentes T&C o de las políticas de Meta.<br />
@@ -185,7 +203,7 @@ const TermsAndConditions = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">14. NIVEL DE SERVICIO (SLA)</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">15. NIVEL DE SERVICIO (SLA)</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 14.1. Agent IA se esforzará por mantener una disponibilidad del servicio del 99.9% mensual, excluyendo ventanas de mantenimiento programado y eventos de fuerza mayor.<br /><br />
                 14.2. Las ventanas de mantenimiento programado serán notificadas con al menos 24 horas de anticipación.<br /><br />
@@ -194,28 +212,28 @@ const TermsAndConditions = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">15. CONFIDENCIALIDAD</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">16. CONFIDENCIALIDAD</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Ambas partes se comprometen a mantener la confidencialidad de toda información comercial, técnica o de cualquier otra naturaleza que sea compartida en el marco de la relación contractual. Esta obligación subsistirá por un período de dos (2) años después de la terminación de la relación contractual.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">16. FUERZA MAYOR Y CASO FORTUITO</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">17. FUERZA MAYOR Y CASO FORTUITO</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Ninguna de las partes será responsable por el incumplimiento de sus obligaciones cuando dicho incumplimiento sea causado por eventos de fuerza mayor o caso fortuito, según lo definido en el artículo 64 del Código Civil colombiano. Estos eventos incluyen, sin limitarse a: desastres naturales, pandemias, conflictos armados, actos de terrorismo, fallos masivos en infraestructura de telecomunicaciones, modificaciones legislativas o regulatorias imprevistas, y decisiones de Meta que afecten la operación de la API de WhatsApp Business.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">17. PROTECCIÓN AL CONSUMIDOR</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">18. PROTECCIÓN AL CONSUMIDOR</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 El Usuario que contrate los Servicios en su calidad de consumidor conforme a la Ley 1480 de 2011 (Estatuto del Consumidor) gozará de las garantías y derechos previstos en dicha normatividad. El derecho de retracto podrá ejercerse dentro de los cinco (5) días hábiles siguientes a la contratación, siempre que no se haya iniciado la prestación efectiva del servicio.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">18. RESOLUCIÓN DE CONFLICTOS</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">19. RESOLUCIÓN DE CONFLICTOS</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 18.1. Las partes procurarán resolver cualquier controversia de manera amistosa mediante negociación directa durante un plazo de treinta (30) días calendario.<br /><br />
                 18.2. De no alcanzarse un acuerdo, las controversias serán sometidas a la jurisdicción de los jueces y tribunales competentes de la República de Colombia, renunciando las partes a cualquier otro fuero que pudiera corresponderles.<br /><br />
@@ -224,7 +242,7 @@ const TermsAndConditions = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">19. DISPOSICIONES GENERALES</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">20. DISPOSICIONES GENERALES</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 19.1. <strong className="text-foreground">Cesión:</strong> El Usuario no podrá ceder sus derechos u obligaciones derivados de los presentes T&C sin el consentimiento previo y por escrito de Agent IA. Agent IA podrá ceder libremente sus derechos y obligaciones.<br /><br />
                 19.2. <strong className="text-foreground">Divisibilidad:</strong> Si alguna disposición de los presentes T&C fuera declarada nula o inaplicable, las disposiciones restantes mantendrán plena vigencia y efecto.<br /><br />
@@ -234,7 +252,7 @@ const TermsAndConditions = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">20. CONTACTO</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">21. CONTACTO</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Para cualquier consulta, reclamación o solicitud relacionada con los presentes T&C, el Usuario podrá comunicarse a través de:<br /><br />
                 <strong className="text-foreground">Correo electrónico:</strong> contacto@soyagentia.com<br />

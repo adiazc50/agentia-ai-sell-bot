@@ -35,120 +35,122 @@ const AppLogosRow = () => (
   </div>
 );
 
-// Prices are defined in USD. Plan Test is a special fixed-COP plan (Wompi minimum).
-const plans = [
-  {
-    name: "Plan Test",
+// Los planes se cargan dinámicamente desde la DB (tabla Plans) via api.plans.list()
+// Solo los iconos, features y "popular" se definen aquí como metadata por slug.
+// Para agregar/modificar planes: actualizar la tabla Plans en MySQL y agregar el slug aquí.
+const PLAN_META: Record<string, { icon: any; popular: boolean; features: string[] }> = {
+  'plan-test': {
     icon: Zap,
-    conversations: "250",
-    users: 1,
-    priceUSD: null as number | null,
-    fixedPriceCOP: 1500,
-    features: [
-      "250 respuestas de IA",
-      "1 usuario incluido",
-      "7 días de prueba",
-      "Mensajes masivos vía Meta API oficial*",
-      "Cobro de verificación: $0.39 USD",
-      "Cobro automático al finalizar",
-    ],
     popular: false,
-    isTrial: true,
-    trialDays: 7,
+    features: [
+      "pricing.feat.aiResponses",
+      "pricing.feat.oneUser",
+      "pricing.feat.trialDays",
+      "pricing.feat.massMessages",
+      "pricing.feat.verificationCharge",
+      "pricing.feat.autoCharge",
+    ],
   },
-  {
-    name: "Starter",
+  'starter': {
     icon: Zap,
-    conversations: "250",
-    users: 1,
-    priceUSD: 15,
-    fixedPriceCOP: null as number | null,
-    features: [
-      "250 respuestas de IA/mes",
-      "1 usuario incluido",
-      "Respuestas automáticas 24/7",
-      "Integración WhatsApp",
-      "Mensajes masivos vía Meta API oficial*",
-      "Cobro recurrente mensual",
-    ],
     popular: false,
+    features: [
+      "pricing.feat.aiResponsesMonth",
+      "pricing.feat.oneUser",
+      "pricing.feat.auto247",
+      "pricing.feat.whatsapp",
+      "pricing.feat.massMessages",
+      "pricing.feat.recurringCharge",
+    ],
   },
-  {
-    name: "Mini",
+  'mini': {
     icon: Zap,
-    conversations: "500",
-    users: 1,
-    priceUSD: 29,
-    fixedPriceCOP: null as number | null,
-    features: [
-      "500 respuestas de IA/mes",
-      "1 usuario incluido",
-      "Respuestas automáticas 24/7",
-      "Integración WhatsApp",
-      "Mensajes masivos vía Meta API oficial*",
-      "Panel de control básico",
-    ],
     popular: false,
+    features: [
+      "pricing.feat.aiResponsesMonth",
+      "pricing.feat.oneUser",
+      "pricing.feat.auto247",
+      "pricing.feat.whatsapp",
+      "pricing.feat.massMessages",
+      "pricing.feat.basicPanel",
+    ],
   },
-  {
-    nameKey: "plan.basic",
-    name: "Basic",
+  'basic': {
     icon: Star,
-    conversations: "1.200",
-    users: 1,
-    priceUSD: 59,
-    fixedPriceCOP: null as number | null,
-    features: [
-      "1.200 respuestas de IA/mes",
-      "1 usuario incluido",
-      "Respuestas automáticas 24/7",
-      "Integración WhatsApp",
-      "Mensajes masivos vía Meta API oficial*",
-      "Panel de control completo",
-      "Reportes mensuales",
-    ],
     popular: false,
+    features: [
+      "pricing.feat.aiResponsesMonth",
+      "pricing.feat.oneUser",
+      "pricing.feat.auto247",
+      "pricing.feat.whatsapp",
+      "pricing.feat.massMessages",
+      "pricing.feat.fullPanel",
+      "pricing.feat.monthlyReports",
+    ],
   },
-  {
-    name: "Plus",
+  'basico': {
+    icon: Star,
+    popular: false,
+    features: [
+      "pricing.feat.aiResponsesMonth",
+      "pricing.feat.oneUser",
+      "pricing.feat.auto247",
+      "pricing.feat.whatsapp",
+      "pricing.feat.massMessages",
+      "pricing.feat.fullPanel",
+      "pricing.feat.monthlyReports",
+    ],
+  },
+  'plus': {
     icon: Crown,
-    conversations: "3.500",
-    users: 2,
-    priceUSD: 99,
-    fixedPriceCOP: null as number | null,
-    features: [
-      "3.500 respuestas de IA/mes",
-      "2 usuarios incluidos",
-      "Respuestas automáticas 24/7",
-      "Integración WhatsApp",
-      "Mensajes masivos vía Meta API oficial*",
-      "Panel de control avanzado",
-      "Reportes semanales",
-      "Soporte prioritario",
-    ],
     popular: true,
-  },
-  {
-    name: "Enterprise",
-    icon: Rocket,
-    conversations: "7.500",
-    users: 5,
-    priceUSD: 199,
-    fixedPriceCOP: null as number | null,
     features: [
-      "7.500 respuestas de IA/mes",
-      "5 usuarios incluidos",
-      "Respuestas automáticas 24/7",
-      "Integración WhatsApp",
-      "Mensajes masivos vía Meta API oficial*",
-      "Panel de control avanzado",
-      "Reportes en tiempo real",
-      "Soporte dedicado 24/7",
-      "Personalización avanzada",
+      "pricing.feat.aiResponsesMonth",
+      "pricing.feat.twoUsers",
+      "pricing.feat.auto247",
+      "pricing.feat.whatsapp",
+      "pricing.feat.massMessages",
+      "pricing.feat.advancedPanel",
+      "pricing.feat.weeklyReports",
+      "pricing.feat.prioritySupport",
     ],
-    popular: false,
   },
-];
+  'enterprise': {
+    icon: Rocket,
+    popular: false,
+    features: [
+      "pricing.feat.aiResponsesMonth",
+      "pricing.feat.fiveUsers",
+      "pricing.feat.auto247",
+      "pricing.feat.whatsapp",
+      "pricing.feat.massMessages",
+      "pricing.feat.advancedPanel",
+      "pricing.feat.realtimeReports",
+      "pricing.feat.dedicatedSupport",
+      "pricing.feat.advancedCustomization",
+    ],
+  },
+};
+
+// Users included per plan slug
+const PLAN_USERS: Record<string, number> = {
+  'plan-test': 1, 'starter': 1, 'mini': 1, 'basic': 1, 'basico': 1, 'plus': 2, 'enterprise': 5,
+};
+
+interface PlanDisplay {
+  id: number;
+  name: string;
+  slug: string;
+  icon: any;
+  conversations: string;
+  users: number;
+  priceUSD: number | null;
+  fixedPriceCOP: number | null;
+  features: string[];
+  popular: boolean;
+  isTrial: boolean;
+  trialDays: number | null;
+}
 
 const SEMIANNUAL_DISCOUNT = 0.10; // 10% discount for 6-month plans
 const ANNUAL_DISCOUNT = 0.15; // 15% discount for annual plans
@@ -196,6 +198,8 @@ const getCustomPlanPriceUSD = (messages: number): number => {
 
 const PricingSection = () => {
   const { t } = useLanguage();
+  const [plans, setPlans] = useState<PlanDisplay[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -204,11 +208,10 @@ const PricingSection = () => {
   const [customMessagesInput, setCustomMessagesInput] = useState<string>("10000");
   const [additionalUsers, setAdditionalUsers] = useState<number>(0);
   const [paymentMethodModal, setPaymentMethodModal] = useState(false);
-  const [pendingPlan, setPendingPlan] = useState<typeof plans[0] | null>(null);
+  const [pendingPlan, setPendingPlan] = useState<PlanDisplay | null>(null);
   const [userTransactions, setUserTransactions] = useState<any[]>([]);
 
   // Check if user already purchased Plan Test
-  // All logged transactions are implicitly approved (no status field in MySQL)
   const hasPurchasedPlanTest = useMemo(() => {
     return userTransactions.some(
       (tx) => tx.plan_name?.toLowerCase().includes('plan test')
@@ -234,7 +237,7 @@ const PricingSection = () => {
   const usdToCop = (usd: number): number => Math.round(usd * trm);
 
   // Get plan monthly price in COP (for Wompi)
-  const getPlanMonthlyCOP = (plan: typeof plans[0]): number => {
+  const getPlanMonthlyCOP = (plan: PlanDisplay): number => {
     if (plan.fixedPriceCOP) return plan.fixedPriceCOP;
     return usdToCop(plan.priceUSD!);
   };
@@ -250,8 +253,8 @@ const PricingSection = () => {
   };
 
   // Format a plan's monthly price for display (USD-only UI)
-  const formatPlanMonthly = (plan: typeof plans[0]): string => {
-    if ((plan as any).isTrial) {
+  const formatPlanMonthly = (plan: PlanDisplay): string => {
+    if (plan.isTrial) {
       return `0 USD`;
     }
     if (plan.priceUSD !== null) {
@@ -274,7 +277,7 @@ const PricingSection = () => {
   };
 
   // Monthly display price in USD (with discount if applicable)
-  const getMonthlyDisplayUSD = (plan: typeof plans[0]): number | null => {
+  const getMonthlyDisplayUSD = (plan: PlanDisplay): number | null => {
     if (!plan.priceUSD) return null;
     const discount = getActiveDiscount();
     if (discount > 0) {
@@ -284,7 +287,7 @@ const PricingSection = () => {
   };
 
   // Get total price in COP to charge via Wompi
-  const getTotalPriceCOP = (plan: typeof plans[0]): number => {
+  const getTotalPriceCOP = (plan: PlanDisplay): number => {
     const monthlyCOP = getPlanMonthlyCOP(plan);
     const discount = getActiveDiscount();
     const months = getBillingMonths();
@@ -296,7 +299,7 @@ const PricingSection = () => {
   };
 
   // Period total in USD for display
-  const getPeriodTotalUSD = (plan: typeof plans[0]): number | null => {
+  const getPeriodTotalUSD = (plan: PlanDisplay): number | null => {
     if (!plan.priceUSD) return null;
     const discount = getActiveDiscount();
     const months = getBillingMonths();
@@ -304,7 +307,7 @@ const PricingSection = () => {
     return Math.round(discounted * months * 100) / 100;
   };
 
-  const getOriginalPeriodUSD = (plan: typeof plans[0]): number | null => {
+  const getOriginalPeriodUSD = (plan: PlanDisplay): number | null => {
     if (!plan.priceUSD) return null;
     const months = getBillingMonths();
     return Math.round(plan.priceUSD * months * 100) / 100;
@@ -316,13 +319,45 @@ const PricingSection = () => {
     script.async = true;
     document.body.appendChild(script);
 
+    // Load plans from DB
+    const loadPlans = async () => {
+      try {
+        const dbPlans = await api.plans.list();
+        const arr = Array.isArray(dbPlans) ? dbPlans : [];
+        const mapped: PlanDisplay[] = arr
+          .filter((p: any) => p.status === 1)
+          .map((p: any) => {
+            const meta = PLAN_META[p.slug] || { icon: Zap, popular: false, features: [] };
+            return {
+              id: p.id,
+              name: p.name,
+              slug: p.slug,
+              icon: meta.icon,
+              conversations: Number(p.messages).toLocaleString('es-CO'),
+              users: PLAN_USERS[p.slug] || 1,
+              priceUSD: p.fixedPriceCOP ? null : Number(p.priceUSD),
+              fixedPriceCOP: p.fixedPriceCOP ? Number(p.fixedPriceCOP) : null,
+              features: meta.features,
+              popular: meta.popular,
+              isTrial: !!p.isTrial,
+              trialDays: p.trialDays || null,
+            };
+          });
+        setPlans(mapped);
+      } catch (err) {
+        console.error('Error loading plans:', err);
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+    loadPlans();
+
     const loadUserData = async () => {
       try {
         const [profileRes, transactions] = await Promise.all([
           api.profile.get(),
           api.transactions.list(),
         ]);
-        // Backend returns { user, company, roleConversia }
         if (profileRes) {
           const merged = {
             ...profileRes.user,
@@ -348,11 +383,11 @@ const PricingSection = () => {
     }
 
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) document.body.removeChild(script);
     };
   }, []);
 
-  const handleSelectPlan = async (plan: typeof plans[0]) => {
+  const handleSelectPlan = async (plan: PlanDisplay) => {
     if (!userId) {
       toast({
         title: t("pricing.loginFirst"),
@@ -363,7 +398,7 @@ const PricingSection = () => {
     }
 
     // Block re-purchase of Plan Test
-    if ((plan as any).isTrial && hasPurchasedPlanTest) {
+    if (plan.isTrial && hasPurchasedPlanTest) {
       toast({
         title: "Plan Test ya adquirido",
         description: "El Plan Test solo se puede comprar una vez. Elige otro plan para continuar.",
@@ -376,7 +411,7 @@ const PricingSection = () => {
     handleWompiPayment(plan);
   };
 
-  const handleWompiPayment = async (plan: typeof plans[0]) => {
+  const handleWompiPayment = async (plan: PlanDisplay) => {
     setPaymentMethodModal(false);
     setLoadingPlan(plan.name);
 
@@ -473,7 +508,7 @@ const PricingSection = () => {
     }
   };
 
-  const handlePayPalPayment = async (plan: typeof plans[0]) => {
+  const handlePayPalPayment = async (plan: PlanDisplay) => {
     setPaymentMethodModal(false);
     setLoadingPlan(plan.name);
 
@@ -617,10 +652,18 @@ const PricingSection = () => {
           </div>
         </motion.div>
 
+        {/* Loading state */}
+        {plansLoading && (
+          <div className="flex justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        )}
+
+        {!plansLoading && plans.length > 0 && (<>
         {/* First row: Trial + Starter side by side */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto mb-6">
           {plans.slice(0, 2).map((plan, index) => {
-            const isTrial = !!(plan as any).isTrial;
+            const isTrial = !!plan.isTrial;
             const isTrialBlocked = isTrial && hasPurchasedPlanTest;
 
             return (
@@ -663,7 +706,7 @@ const PricingSection = () => {
 
                   <div className="mb-5">
                     {(() => {
-                      const isTr = !!(plan as any).isTrial;
+                      const isTr = !!plan.isTrial;
                       const discount = getActiveDiscount();
                       const monthlyUSD = getMonthlyDisplayUSD(plan);
                       const periodTotalUSD = getPeriodTotalUSD(plan);
@@ -722,7 +765,11 @@ const PricingSection = () => {
                     {plan.features.map((feature, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm transition-transform duration-300 group-hover:translate-x-1" style={{ transitionDelay: `${i * 50}ms` }}>
                         <Check className="w-4 h-4 text-primary mt-0.5 shrink-0 transition-transform duration-300 group-hover:scale-110" />
-                        <span className="text-muted-foreground group-hover:text-foreground/80 transition-colors duration-300">{t(feature)}</span>
+                        <span className="text-muted-foreground group-hover:text-foreground/80 transition-colors duration-300">
+                          {feature === 'pricing.feat.aiResponses' || feature === 'pricing.feat.aiResponsesMonth'
+                            ? `${plan.conversations} ${t(feature)}`
+                            : t(feature)}
+                        </span>
                       </li>
                     ))}
                     <li className="pt-1">
@@ -810,7 +857,7 @@ const PricingSection = () => {
 
                   <div className="flex items-center justify-between mb-1">
                     <h3 className={`text-xl font-bold ${plan.popular ? "gradient-text" : ""}`}>
-                      {plan.nameKey ? t(plan.nameKey) : plan.name}
+                      {plan.name}
                     </h3>
                     <span className="text-xs font-semibold bg-primary/10 text-primary px-2.5 py-1 rounded-full flex items-center gap-1">
                       <Gift className="w-3 h-3" />
@@ -864,7 +911,11 @@ const PricingSection = () => {
                           }`}>
                             <Check className="w-3 h-3 text-primary" />
                           </div>
-                          <span className="text-muted-foreground group-hover:text-foreground/80 transition-colors duration-300">{t(feature)}</span>
+                          <span className="text-muted-foreground group-hover:text-foreground/80 transition-colors duration-300">
+                            {feature === 'pricing.feat.aiResponses' || feature === 'pricing.feat.aiResponsesMonth'
+                              ? `${plan.conversations} ${t(feature)}`
+                              : t(feature)}
+                          </span>
                         </li>
                       ))}
                       <li className="pt-1">
@@ -1156,6 +1207,7 @@ const PricingSection = () => {
             </div>
           </div>
         </motion.div>
+        </>)}
       </div>
 
       {/* Payment method selector removed - Wompi only */}

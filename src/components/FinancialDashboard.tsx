@@ -30,6 +30,7 @@ interface Transaction {
   payment_method: string | null;
   transaction_date: string | null;
   created_at: string;
+  status: string;
 }
 
 interface FinancialDashboardProps {
@@ -47,6 +48,7 @@ const FinancialDashboard = ({ profiles, transactions }: FinancialDashboardProps)
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("all");
 
   const getName = (profile: Profile | undefined) => {
     if (!profile) return "Usuario";

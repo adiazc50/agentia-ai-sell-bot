@@ -7,7 +7,7 @@ import SEOHead from "@/components/SEOHead";
 const PrivacyPolicy = () => {
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead />
+      <SEOHead title="Política de Privacidad - Agent IA SAS" description="Política de Privacidad y Tratamiento de Datos Personales de Agent IA SAS (SoyAgentia)." />
       <Navbar />
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4 max-w-4xl">
@@ -104,6 +104,7 @@ const PrivacyPolicy = () => {
                 6.1. <strong className="text-foreground">Transferencia nacional:</strong> Agent IA podrá transferir datos personales a terceros ubicados en Colombia que actúen como Encargados del Tratamiento, previa suscripción de contratos que garanticen niveles adecuados de protección.<br /><br />
                 6.2. <strong className="text-foreground">Transferencia internacional:</strong> En cumplimiento del artículo 26 de la Ley 1581 de 2012, Agent IA podrá transferir datos personales a los siguientes terceros ubicados fuera de Colombia:<br /><br />
                 • <strong className="text-foreground">Meta Platforms, Inc.</strong> (Estados Unidos) — Necesaria para la integración con WhatsApp Business API<br />
+                • <strong className="text-foreground">TikTok (ByteDance Ltd.)</strong> (Singapur/Estados Unidos) — Necesaria para la integración con TikTok Business API para mensajería automatizada<br />
                 • <strong className="text-foreground">Proveedores de infraestructura en la nube</strong> — Para almacenamiento seguro y procesamiento de datos<br />
                 • <strong className="text-foreground">Proveedores de modelos de IA</strong> — Para el funcionamiento de los algoritmos de respuesta automática<br /><br />
                 6.3. En todos los casos de transferencia internacional, Agent IA se asegurará de que los países destinatarios cuenten con niveles adecuados de protección de datos o, en su defecto, se celebrarán contratos que garanticen las condiciones mínimas previstas en la legislación colombiana.
@@ -149,21 +150,46 @@ const PrivacyPolicy = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">10. COOKIES Y TECNOLOGÍAS DE SEGUIMIENTO</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">10. INTEGRACIÓN CON TIKTOK</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                10.1. Agent IA integra la API de TikTok for Business para permitir a los Usuarios gestionar mensajes directos y respuestas automatizadas a través de sus cuentas de TikTok Business.<br /><br />
+                <strong className="text-foreground">10.2. Datos recopilados a través de TikTok:</strong><br />
+                • Información del perfil de TikTok Business del Usuario (nombre de usuario, ID de cuenta)<br />
+                • Mensajes directos recibidos y enviados a través de la plataforma TikTok<br />
+                • Datos de interacción de los seguidores que se comunican con el Usuario vía mensajes directos<br />
+                • Tokens de acceso OAuth para la autenticación segura<br /><br />
+                <strong className="text-foreground">10.3. Uso de los datos de TikTok:</strong><br />
+                • Procesamiento y respuesta automatizada de mensajes directos mediante el Agente de IA<br />
+                • Gestión centralizada de conversaciones de TikTok junto con otros canales (WhatsApp, Instagram)<br />
+                • Análisis de interacciones para mejorar la atención al cliente<br /><br />
+                <strong className="text-foreground">10.4. Almacenamiento y retención:</strong><br />
+                • Los datos de TikTok se almacenan de forma segura en nuestros servidores con encriptación en tránsito y en reposo<br />
+                • Los tokens de acceso se almacenan de forma encriptada y se renuevan automáticamente<br />
+                • Los datos se retienen conforme a la sección 9 de esta Política<br /><br />
+                <strong className="text-foreground">10.5. Eliminación de datos:</strong><br />
+                • El Usuario puede desconectar su cuenta de TikTok en cualquier momento desde la configuración de la Plataforma<br />
+                • Al desconectar, los tokens de acceso se eliminan inmediatamente<br />
+                • El historial de conversaciones de TikTok se puede solicitar para eliminación contactando a notificaciones@soyagentia.com<br /><br />
+                10.6. Agent IA cumple con las <strong className="text-foreground">Políticas para Desarrolladores de TikTok</strong>, incluyendo las directrices de privacidad, seguridad y uso de datos de la plataforma. Agent IA no vende, comparte ni utiliza los datos obtenidos a través de TikTok para fines distintos a los descritos en esta Política.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-foreground mb-3">11. COOKIES Y TECNOLOGÍAS DE SEGUIMIENTO</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 La Plataforma utiliza cookies y tecnologías similares para mejorar la experiencia del Usuario. Para más información sobre el uso de cookies, tipos y configuración, el Usuario puede consultar la sección correspondiente en la Plataforma. El Usuario puede configurar su navegador para rechazar cookies, aunque esto puede afectar la funcionalidad del servicio.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">11. TRATAMIENTO DE DATOS DE MENORES</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">12. TRATAMIENTO DE DATOS DE MENORES</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Los Servicios de Agent IA están dirigidos exclusivamente a personas mayores de edad. Agent IA no recopila intencionalmente datos personales de menores de edad. Si Agent IA detecta que se han recopilado datos de un menor sin la autorización del representante legal, procederá a eliminarlos de inmediato conforme al artículo 7 de la Ley 1581 de 2012.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">12. INCIDENTES DE SEGURIDAD</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">13. INCIDENTES DE SEGURIDAD</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 En caso de un incidente de seguridad que comprometa datos personales, Agent IA:<br /><br />
                 a) Notificará a la Superintendencia de Industria y Comercio (SIC) dentro de los quince (15) días hábiles siguientes al conocimiento del incidente.<br />
@@ -173,14 +199,14 @@ const PrivacyPolicy = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">13. MODIFICACIONES A LA POLÍTICA</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">14. MODIFICACIONES A LA POLÍTICA</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Agent IA se reserva el derecho de modificar la presente Política en cualquier momento. Las modificaciones serán notificadas al Usuario mediante correo electrónico o aviso en la Plataforma. El uso continuado de los Servicios tras la notificación de los cambios constituirá la aceptación de la Política modificada.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">14. AUTORIDAD DE SUPERVISIÓN</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">15. AUTORIDAD DE SUPERVISIÓN</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 La autoridad competente para la vigilancia del cumplimiento de la normatividad de protección de datos personales en Colombia es la <strong className="text-foreground">Superintendencia de Industria y Comercio (SIC)</strong>.<br /><br />
                 <strong className="text-foreground">Dirección:</strong> Carrera 13 No. 27-00, Bogotá D.C., Colombia<br />
@@ -190,7 +216,7 @@ const PrivacyPolicy = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">15. CONTACTO</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">16. CONTACTO</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Para consultas, reclamos o ejercicio de derechos relacionados con el tratamiento de datos personales:<br /><br />
                 <strong className="text-foreground">Oficial de Protección de Datos:</strong> AGENT IA SAS<br />

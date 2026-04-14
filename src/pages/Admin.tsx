@@ -55,6 +55,7 @@ interface Transaction {
   payment_method: string | null;
   transaction_date: string | null;
   status?: string;
+  type?: string;
   created_at: string;
 }
 
@@ -139,11 +140,17 @@ const Admin = () => {
   const [newPayment, setNewPayment] = useState({
     email: "",
     plan_name: "mensual",
-    package_name: "basico",
-    amount: 150000,
+    idPlan: 0,
+    amount: 0,
+    currency: "COP",
     payment_method: "manual",
     status: "APPROVED",
+    transactionDate: new Date().toISOString().split('T')[0],
+    transactionId: "",
+    activatePlan: true,
+    generateInvoice: false,
   });
+  const [dbPlans, setDbPlans] = useState<any[]>([]);
   const [creatingPayment, setCreatingPayment] = useState(false);
   const [syncingCommissions, setSyncingCommissions] = useState(false);
   const [commissionFilterYear, setCommissionFilterYear] = useState<string>(new Date().getFullYear().toString());
@@ -383,12 +390,13 @@ const Admin = () => {
 
   const loadData = async () => {
     try {
-      const [profilesData, rolesData, txData, ticketData, commissionsData] = await Promise.all([
+      const [profilesData, rolesData, txData, ticketData, commissionsData, plansData] = await Promise.all([
         api.admin.profiles(),
         api.admin.roles(),
         api.admin.transactions(),
         api.admin.tickets(),
         api.admin.commissions(),
+        api.plans.list(),
       ]);
 
       setProfiles((profilesData as Profile[]) || []);
@@ -396,6 +404,8 @@ const Admin = () => {
       setTransactions((txData as Transaction[]) || []);
       setTickets((ticketData as SupportTicket[]) || []);
       setCommissions((commissionsData as SellerCommission[]) || []);
+      const plans = Array.isArray(plansData) ? plansData.filter((p: any) => p.status === 1) : [];
+      setDbPlans(plans);
     } catch (err) {
       console.error("Error loading admin data:", err);
     }
@@ -494,10 +504,10 @@ const Admin = () => {
   };
 
   const handleCreatePayment = async () => {
-    if (!newPayment.email) {
+    if (!newPayment.email || !newPayment.idPlan) {
       toast({
         title: "Error",
-        description: "Debes seleccionar un cliente.",
+        description: "Debes seleccionar un cliente y un plan.",
         variant: "destructive",
       });
       return;
@@ -505,24 +515,36 @@ const Admin = () => {
 
     setCreatingPayment(true);
 
-    const reference = `MANUAL-${Date.now()}-${Math.random().toString(36).substring(7).toUpperCase()}`;
+    const reference = newPayment.transactionId
+      ? `MANUAL-${newPayment.transactionId}`
+      : `MANUAL-${Date.now()}-${Math.random().toString(36).substring(7).toUpperCase()}`;
+
+    const selectedPlan = dbPlans.find(p => p.id === newPayment.idPlan);
+    const planName = selectedPlan ? selectedPlan.name : 'Plan';
+    const periodSuffix = newPayment.plan_name === 'anual' ? ' - Anual' : newPayment.plan_name === 'semestral' ? ' - Semestral' : ' - Mensual';
 
     try {
       const selectedProfile = profiles.find(p => p.email === newPayment.email);
       await api.admin.createTransaction({
         email: selectedProfile?.email || "",
-        id_company: selectedProfile?.id_company || null,
-        plan_name: `${newPayment.plan_name} - ${newPayment.package_name}`,
+        idCompany: selectedProfile?.id_company || null,
+        planName: planName + periodSuffix,
         amount: newPayment.amount,
-        payment_method: newPayment.payment_method,
+        currency: newPayment.currency,
+        paymentMethod: newPayment.payment_method,
         status: newPayment.status,
         reference,
-        currency: "COP",
+        transactionId: newPayment.transactionId || reference,
+        transactionDate: newPayment.transactionDate,
+        idPlan: newPayment.idPlan,
+        aiResponsesIncluded: selectedPlan ? Number(selectedPlan.messages) : 0,
+        activatePlan: newPayment.activatePlan,
+        generateInvoice: newPayment.generateInvoice,
       });
 
       toast({
-        title: "Pago creado",
-        description: "El pago se ha registrado correctamente.",
+        title: "Pago registrado",
+        description: `Pago de ${planName} registrado correctamente.${newPayment.activatePlan ? ' Plan activado.' : ''}${newPayment.generateInvoice ? ' Factura generándose.' : ''}`,
       });
     } catch (error: any) {
       console.error("Error creating payment:", error);
@@ -536,15 +558,19 @@ const Admin = () => {
     }
 
     setCreatingPayment(false);
-
     setNewPaymentModal(false);
     setNewPayment({
       email: "",
       plan_name: "mensual",
-      package_name: "basico",
-      amount: 150000,
+      idPlan: 0,
+      amount: 0,
+      currency: "COP",
       payment_method: "manual",
       status: "APPROVED",
+      transactionDate: new Date().toISOString().split('T')[0],
+      transactionId: "",
+      activatePlan: true,
+      generateInvoice: false,
     });
     await loadData();
   };
@@ -731,7 +757,7 @@ const Admin = () => {
         : null;
 
       // Count approved payments for this user
-      const totalPayments = transactions.filter(tx => tx.email === profile.email).length;
+      const totalPayments = transactions.filter(tx => tx.id_company === profile.id_company && tx.status === 'APPROVED' && tx.type !== 'upgrade').length;
 
       // Subscription end = entryDate + N months (N = total payments)
       // E.g. implemented 14 mar + 2 payments = expires 14 may
@@ -2261,18 +2287,19 @@ const Admin = () => {
 
       {/* New Payment Modal */}
       <Dialog open={newPaymentModal} onOpenChange={setNewPaymentModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-primary" />
-              Crear Pago Manual
+              Registrar Pago Manual
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 mt-4">
+          <div className="space-y-4 mt-2">
+            {/* Cliente */}
             <div className="space-y-2">
               <Label>Cliente *</Label>
-              <Select 
+              <Select
                 value={newPayment.email}
                 onValueChange={(value) => setNewPayment(prev => ({ ...prev, email: value }))}
               >
@@ -2296,77 +2323,167 @@ const Admin = () => {
               </Select>
             </div>
 
+            {/* Plan y Periodo */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Plan</Label>
-                <Select 
-                  value={newPayment.plan_name} 
-                  onValueChange={(value) => setNewPayment(prev => ({ ...prev, plan_name: value }))}
+                <Label>Plan *</Label>
+                <Select
+                  value={String(newPayment.idPlan || '')}
+                  onValueChange={(value) => {
+                    const plan = dbPlans.find(p => p.id === Number(value));
+                    setNewPayment(prev => {
+                      const trm = exchangeRate?.rate ?? 4200;
+                      const priceUSD = plan ? Number(plan.priceUSD) : 0;
+                      const discount = prev.plan_name === 'semestral' ? 0.10 : prev.plan_name === 'anual' ? 0.15 : 0;
+                      const months = prev.plan_name === 'semestral' ? 6 : prev.plan_name === 'anual' ? 12 : 1;
+                      const totalUSD = Math.round(priceUSD * (1 - discount) * months * 100) / 100;
+                      const amount = prev.currency === 'COP'
+                        ? (plan?.fixedPriceCOP ? Number(plan.fixedPriceCOP) : Math.round(totalUSD * trm))
+                        : totalUSD;
+                      return { ...prev, idPlan: Number(value), amount };
+                    });
+                  }}
+                >
+                  <SelectTrigger className="bg-secondary border-border">
+                    <SelectValue placeholder="Seleccionar plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dbPlans.map((plan) => (
+                      <SelectItem key={plan.id} value={String(plan.id)}>
+                        {plan.name} (${Number(plan.priceUSD)} USD)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Periodo</Label>
+                <Select
+                  value={newPayment.plan_name}
+                  onValueChange={(value) => {
+                    const plan = dbPlans.find(p => p.id === newPayment.idPlan);
+                    setNewPayment(prev => {
+                      const trm = exchangeRate?.rate ?? 4200;
+                      const priceUSD = plan ? Number(plan.priceUSD) : 0;
+                      const discount = value === 'semestral' ? 0.10 : value === 'anual' ? 0.15 : 0;
+                      const months = value === 'semestral' ? 6 : value === 'anual' ? 12 : 1;
+                      const totalUSD = Math.round(priceUSD * (1 - discount) * months * 100) / 100;
+                      let amount = prev.amount;
+                      if (plan) {
+                        amount = prev.currency === 'COP'
+                          ? (plan.fixedPriceCOP ? Number(plan.fixedPriceCOP) : Math.round(totalUSD * trm))
+                          : totalUSD;
+                      }
+                      return { ...prev, plan_name: value, amount };
+                    });
+                  }}
                 >
                   <SelectTrigger className="bg-secondary border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="mensual">Mensual</SelectItem>
-                    <SelectItem value="trimestral">Trimestral</SelectItem>
                     <SelectItem value="semestral">Semestral</SelectItem>
                     <SelectItem value="anual">Anual</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
+            {/* Monto y Moneda */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Paquete</Label>
-                <Select 
-                  value={newPayment.package_name} 
-                  onValueChange={(value) => setNewPayment(prev => ({ ...prev, package_name: value }))}
+                <Label>Monto</Label>
+                <Input
+                  type="number"
+                  value={newPayment.amount}
+                  onChange={(e) => setNewPayment(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                  className="bg-secondary border-border"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Moneda</Label>
+                <Select
+                  value={newPayment.currency}
+                  onValueChange={(value) => {
+                    const plan = dbPlans.find(p => p.id === newPayment.idPlan);
+                    setNewPayment(prev => {
+                      const trm = exchangeRate?.rate ?? 4200;
+                      const priceUSD = plan ? Number(plan.priceUSD) : 0;
+                      const discount = prev.plan_name === 'semestral' ? 0.10 : prev.plan_name === 'anual' ? 0.15 : 0;
+                      const months = prev.plan_name === 'semestral' ? 6 : prev.plan_name === 'anual' ? 12 : 1;
+                      const totalUSD = Math.round(priceUSD * (1 - discount) * months * 100) / 100;
+                      let amount = prev.amount;
+                      if (plan) {
+                        amount = value === 'COP'
+                          ? (plan.fixedPriceCOP ? Number(plan.fixedPriceCOP) : Math.round(totalUSD * trm))
+                          : totalUSD;
+                      }
+                      return { ...prev, currency: value, amount };
+                    });
+                  }}
                 >
                   <SelectTrigger className="bg-secondary border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="basico">Básico</SelectItem>
-                    <SelectItem value="profesional">Profesional</SelectItem>
-                    <SelectItem value="empresarial">Empresarial</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
+                    <SelectItem value="COP">COP</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
+            {/* Método de pago y Fecha */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Método de Pago</Label>
+                <Select
+                  value={newPayment.payment_method}
+                  onValueChange={(value) => setNewPayment(prev => ({ ...prev, payment_method: value }))}
+                >
+                  <SelectTrigger className="bg-secondary border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manual">Manual / Efectivo</SelectItem>
+                    <SelectItem value="transferencia">Transferencia</SelectItem>
+                    <SelectItem value="nequi">Nequi</SelectItem>
+                    <SelectItem value="daviplata">Daviplata</SelectItem>
+                    <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                    <SelectItem value="PAYPAL">PayPal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Fecha del pago</Label>
+                <Input
+                  type="date"
+                  value={newPayment.transactionDate}
+                  onChange={(e) => setNewPayment(prev => ({ ...prev, transactionDate: e.target.value }))}
+                  className="bg-secondary border-border"
+                />
+              </div>
+            </div>
+
+            {/* Referencia */}
             <div className="space-y-2">
-              <Label>Monto (COP)</Label>
+              <Label>Referencia / # Consignación</Label>
               <Input
-                type="number"
-                value={newPayment.amount}
-                onChange={(e) => setNewPayment(prev => ({ ...prev, amount: parseInt(e.target.value) || 0 }))}
+                value={newPayment.transactionId}
+                onChange={(e) => setNewPayment(prev => ({ ...prev, transactionId: e.target.value }))}
+                placeholder="Ej: Transferencia Bancolombia #12345"
                 className="bg-secondary border-border"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Método de Pago</Label>
-              <Select 
-                value={newPayment.payment_method} 
-                onValueChange={(value) => setNewPayment(prev => ({ ...prev, payment_method: value }))}
-              >
-                <SelectTrigger className="bg-secondary border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manual">Manual / Efectivo</SelectItem>
-                  <SelectItem value="transferencia">Transferencia</SelectItem>
-                  <SelectItem value="nequi">Nequi</SelectItem>
-                  <SelectItem value="daviplata">Daviplata</SelectItem>
-                  <SelectItem value="tarjeta">Tarjeta</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
+            {/* Estado */}
             <div className="space-y-2">
               <Label>Estado</Label>
-              <Select 
-                value={newPayment.status} 
+              <Select
+                value={newPayment.status}
                 onValueChange={(value) => setNewPayment(prev => ({ ...prev, status: value }))}
               >
                 <SelectTrigger className="bg-secondary border-border">
@@ -2379,20 +2496,48 @@ const Admin = () => {
               </Select>
             </div>
 
-            <div className="flex gap-3 pt-4">
-              <Button 
-                variant="outline" 
+            {/* Opciones */}
+            <div className="space-y-3 p-3 rounded-lg bg-secondary/50 border border-border">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newPayment.activatePlan}
+                  onChange={(e) => setNewPayment(prev => ({ ...prev, activatePlan: e.target.checked }))}
+                  className="accent-primary w-4 h-4"
+                />
+                <div>
+                  <span className="text-sm font-medium">Activar plan y mensajes</span>
+                  <p className="text-xs text-muted-foreground">Asigna el plan a la empresa y activa los mensajes. Desmarcar para pagos históricos.</p>
+                </div>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newPayment.generateInvoice}
+                  onChange={(e) => setNewPayment(prev => ({ ...prev, generateInvoice: e.target.checked }))}
+                  className="accent-primary w-4 h-4"
+                />
+                <div>
+                  <span className="text-sm font-medium">Generar factura electrónica (Siigo)</span>
+                  <p className="text-xs text-muted-foreground">Crea la factura en Siigo y la envía por correo al cliente.</p>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
                 onClick={() => setNewPaymentModal(false)}
                 className="flex-1"
               >
                 Cancelar
               </Button>
-              <Button 
+              <Button
                 onClick={handleCreatePayment}
-                disabled={creatingPayment}
+                disabled={creatingPayment || !newPayment.email || !newPayment.idPlan}
                 className="flex-1"
               >
-                {creatingPayment ? "Creando..." : "Crear Pago"}
+                {creatingPayment ? "Registrando..." : "Registrar Pago"}
               </Button>
             </div>
           </div>

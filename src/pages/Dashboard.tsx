@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import logoSoyAgentia from "@/assets/logo-soyagentia.jpeg";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -22,8 +22,36 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import DashboardShowcase from "@/components/DashboardShowcase";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import CountrySelect from "@/components/CountrySelect";
 import InvoicesTab from "@/components/InvoicesTab";
 
+/** Valida dígito de verificación de NIT colombiano (algoritmo DIAN) */
+function validateNitDv(nit: string): { valid: boolean; error?: string } {
+  const clean = nit.replace(/[.\s]/g, '');
+  if (!clean) return { valid: false, error: 'El NIT es obligatorio' };
+
+  // Debe tener formato XXXXXXXX-X
+  if (!clean.includes('-')) return { valid: false, error: 'El NIT debe incluir el dígito de verificación (ej: 901976734-4)' };
+
+  const parts = clean.split('-');
+  if (parts.length !== 2 || !parts[1]) return { valid: false, error: 'Formato inválido. Usa: número-DV' };
+
+  const base = parts[0];
+  const dvProvided = parseInt(parts[1]);
+  if (isNaN(dvProvided) || !/^\d+$/.test(base)) return { valid: false, error: 'El NIT solo debe contener números' };
+
+  const primes = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
+  let sum = 0;
+  const digits = base.split('').reverse();
+  for (let i = 0; i < digits.length; i++) {
+    sum += parseInt(digits[i]) * primes[i];
+  }
+  const remainder = sum % 11;
+  const dvCalc = remainder >= 2 ? 11 - remainder : remainder;
+
+  if (dvCalc !== dvProvided) return { valid: false, error: `Dígito de verificación incorrecto. Debería ser ${dvCalc}` };
+  return { valid: true };
+}
 
 interface ProfileUser {
   id: number;
@@ -47,6 +75,11 @@ interface ProfileCompany {
   entryDate: string | null;
   status: number;
   accountType: string | null;
+  currentPlan: string | null;
+  counterMessages: number | null;
+  city: string | null;
+  country: string | null;
+  address: string | null;
 }
 
 interface Profile {
@@ -108,6 +141,10 @@ const Dashboard = () => {
   const [newMessage, setNewMessage] = useState("");
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [renewModal, setRenewModal] = useState(false);
+  const [dbPlans, setDbPlans] = useState<any[]>([]);
+  const [wantUpgrade, setWantUpgrade] = useState(false);
+  const [upgradeWhen, setUpgradeWhen] = useState<'now' | 'next'>('now');
+  const [paymentMethod, setPaymentMethod] = useState<'wompi' | 'paypal'>('wompi');
   const [editForm, setEditForm] = useState({
     name: "",
     phone: "",
@@ -115,7 +152,55 @@ const Dashboard = () => {
     documentType: "",
     documentNumber: "",
     nit: "",
+    city: "",
+    country: "",
   });
+  const [invoiceErrors, setInvoiceErrors] = useState<string[]>([]);
+  const getFieldError = (field: string): string | null => {
+    const isEmpresa = profile?.company?.accountType === 'empresa';
+    switch (field) {
+      case 'name':
+        if (!editForm.name.trim()) return 'El nombre es obligatorio';
+        if (editForm.name.trim().split(/\s+/).length < 2) return 'Debe tener nombre y apellido';
+        return null;
+      case 'phone':
+        if (!editForm.phone || editForm.phone === '0') return 'El teléfono es obligatorio';
+        if (editForm.phone.replace(/\D/g, '').length < 7) return 'Debe tener al menos 7 dígitos';
+        return null;
+      case 'address':
+        if (!editForm.address.trim()) return 'La dirección es obligatoria';
+        return null;
+      case 'city':
+        if (!editForm.city.trim()) return 'La ciudad es obligatoria';
+        return null;
+      case 'country':
+        if (!editForm.country.trim()) return 'El país es obligatorio';
+        return null;
+      case 'nit':
+        if (!isEmpresa) return null;
+        if (!editForm.nit.trim()) return 'El NIT/identificación fiscal es obligatorio';
+        // Solo validar dígito de verificación DIAN si es Colombia
+        const isColombia = !editForm.country || editForm.country.toLowerCase() === 'colombia';
+        if (isColombia) return validateNitDv(editForm.nit).error || null;
+        return null; // Otros países: solo que no esté vacío
+      case 'documentType':
+        if (isEmpresa) return null;
+        if (!editForm.documentType) return 'El tipo de documento es obligatorio';
+        return null;
+      case 'documentNumber':
+        if (isEmpresa) return null;
+        if (!editForm.documentNumber.trim()) return 'El número de documento es obligatorio';
+        return null;
+      default: return null;
+    }
+  };
+
+  const isEditFormValid = (): boolean => {
+    const fields = ['name', 'phone', 'address', 'city', 'country'];
+    if (profile?.company?.accountType === 'empresa') fields.push('nit');
+    else { fields.push('documentType'); fields.push('documentNumber'); }
+    return fields.every(f => !getFieldError(f));
+  };
   const [newTicket, setNewTicket] = useState({
     subject: "",
     description: "",
@@ -126,12 +211,14 @@ const Dashboard = () => {
   const [confirmPaymentModal, setConfirmPaymentModal] = useState(false);
   const [pendingPaymentAmount, setPendingPaymentAmount] = useState(0);
   const [pendingPlanName, setPendingPlanName] = useState("");
+  const [pendingTransactionType, setPendingTransactionType] = useState<'renewal' | 'upgrade'>('renewal');
   const [tokenizeModal, setTokenizeModal] = useState(false);
   const [tokenizingCard, setTokenizingCard] = useState(false);
   const [activeSubscription, setActiveSubscription] = useState<any>(null);
   const [paymentMethodModal, setPaymentMethodModal] = useState(false);
   const [pendingPaymentUSD, setPendingPaymentUSD] = useState(0);
   const [triggerWompiPayment, setTriggerWompiPayment] = useState(false);
+  const [triggerPayPalPayment, setTriggerPayPalPayment] = useState(false);
   const { currency, formatPrice, convertToSelectedCurrency, exchangeRate } = useCurrency();
   
   // State for month filter
@@ -151,17 +238,21 @@ const Dashboard = () => {
     );
   }, [transactions]);
 
-  // Load Wompi script
+  // Load Wompi and PayPal scripts
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.wompi.co/widget.js';
-    script.async = true;
-    document.body.appendChild(script);
+    const wompiScript = document.createElement('script');
+    wompiScript.src = 'https://checkout.wompi.co/widget.js';
+    wompiScript.async = true;
+    document.body.appendChild(wompiScript);
+
+    const paypalScript = document.createElement('script');
+    paypalScript.src = `https://www.paypal.com/sdk/js?client-id=AeXaVZuG9yv06r4A76rml4liC333s1MK27iT-dP4r6K3mKnhlDDXNiwege5U7LXjPQfDHt15wN2y_eOM&vault=true&intent=subscription`;
+    paypalScript.async = true;
+    document.body.appendChild(paypalScript);
 
     return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
+      if (document.body.contains(wompiScript)) document.body.removeChild(wompiScript);
+      if (document.body.contains(paypalScript)) document.body.removeChild(paypalScript);
     };
   }, []);
 
@@ -172,6 +263,14 @@ const Dashboard = () => {
       handleConfirmRenewSubscription();
     }
   }, [triggerWompiPayment, pendingPaymentAmount]);
+
+  // Trigger PayPal payment after state has been updated
+  useEffect(() => {
+    if (triggerPayPalPayment && pendingPaymentUSD > 0) {
+      setTriggerPayPalPayment(false);
+      handlePayPalPayment();
+    }
+  }, [triggerPayPalPayment, pendingPaymentUSD]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -214,10 +313,12 @@ const Dashboard = () => {
         setEditForm({
           name: profileData.user?.name || "",
           phone: profileData.user?.phone ? String(profileData.user.phone) : "",
-          address: profileData.user?.address || "",
+          address: profileData.user?.address || profileData.company?.address || "",
           documentType: profileData.user?.documentType || "",
           documentNumber: profileData.user?.documentNumber || "",
           nit: profileData.company?.nit || "",
+          city: profileData.company?.city || "",
+          country: profileData.company?.country || "",
         });
 
         // Fetch transactions
@@ -227,6 +328,20 @@ const Dashboard = () => {
         // Fetch tickets
         const ticketData = await api.tickets.list();
         setTickets((ticketData as SupportTicket[]) || []);
+
+        // Fetch plans from DB
+        const plansData = await api.plans.list();
+        const plans = Array.isArray(plansData) ? plansData : [];
+        setDbPlans(plans);
+
+        // Preselect current plan if exists
+        const currentPlanId = profileData.company?.currentPlan;
+        if (currentPlanId) {
+          const currentPlan = plans.find((p: any) => p.id === currentPlanId);
+          if (currentPlan) {
+            setSelectedPlan(prev => ({ ...prev, package: currentPlan.slug }));
+          }
+        }
 
         // Fetch active subscription
         const subList = await api.subscriptions.list();
@@ -250,7 +365,7 @@ const Dashboard = () => {
           // Verify transaction with Wompi by reference
           const wompiRes = await fetch(
             `https://production.wompi.co/v1/transactions?reference=${pending.reference}`,
-            { headers: { Authorization: `Bearer ${process.env.WOMPI_PUBLIC_KEY || 'pub_prod_DQNOOAhNajTWFPuNX4hEoLuL1WAKeTS5'}` } }
+            { headers: { Authorization: 'Bearer pub_prod_DQNOOAhNajTWFPuNX4hEoLuL1WAKeTS5' } }
           );
           const wompiData = await wompiRes.json();
           const wompiTx = wompiData?.data?.[0];
@@ -259,7 +374,8 @@ const Dashboard = () => {
             await api.transactions.success({
               email: pending.email,
               plan_name: pending.plan_name,
-              ai_responses_included: 0,
+              ai_responses_included: pending.ai_responses_included,
+              id_plan: pending.id_plan,
               amount: pending.amount,
               currency: pending.currency,
               reference: pending.reference,
@@ -285,6 +401,49 @@ const Dashboard = () => {
         } catch (pendingErr) {
           console.error('Error checking pending payment:', pendingErr);
         }
+      }
+
+      // Check for pending PayPal payment after redirect
+      const paypalParam = searchParams.get('paypal');
+      const pendingPayPal = localStorage.getItem('pendingPayPalPayment');
+      if (paypalParam === 'success' && pendingPayPal) {
+        try {
+          const pending = JSON.parse(pendingPayPal);
+          localStorage.removeItem('pendingPayPalPayment');
+
+          // Activate subscription
+          const activateResult = await api.payments.paypalActivateSubscription({
+            subscription_id: pending.subscription_id,
+            plan_name: pending.plan_name,
+            amount: pending.amount_usd,
+            id_plan: pending.id_plan,
+            ai_responses_included: pending.ai_responses_included,
+            type: pending.type,
+            email: pending.email,
+          });
+
+          if (activateResult.success) {
+            toast({
+              title: "¡Pago exitoso!",
+              description: `Tu plan ${pending.plan_name} ha sido activado con PayPal.`,
+            });
+
+            // Refresh transactions and profile
+            const freshTx = await api.transactions.list();
+            setTransactions((freshTx as Transaction[]) || []);
+            const freshProfile = await api.profile.get();
+            setProfile(freshProfile as Profile);
+          }
+        } catch (paypalErr) {
+          console.error('Error activating PayPal subscription:', paypalErr);
+        }
+      } else if (paypalParam === 'cancel') {
+        localStorage.removeItem('pendingPayPalPayment');
+        toast({
+          title: "Pago cancelado",
+          description: "Has cancelado el pago con PayPal.",
+          variant: "destructive",
+        });
       }
 
       setLoading(false);
@@ -502,6 +661,8 @@ const Dashboard = () => {
         documentType: editForm.documentType || null,
         documentNumber: editForm.documentNumber || null,
         nit: editForm.nit || null,
+        city: editForm.city || null,
+        country: editForm.country || null,
       });
       toast({
         title: "Éxito",
@@ -520,8 +681,11 @@ const Dashboard = () => {
         company: {
           ...prev.company,
           nit: editForm.nit || prev.company?.nit,
+          city: editForm.city || prev.company?.city,
+          country: editForm.country || prev.company?.country,
         }
       } : null);
+      setInvoiceErrors([]);
       setEditProfileModal(false);
     } catch (error) {
       toast({
@@ -607,59 +771,174 @@ const Dashboard = () => {
     }
   };
 
-  const initiateRenewSubscription = () => {
-    const monthlyPricesUSD: Record<string, number> = {
-      starter: 15, mini: 29, basico: 59, plus: 99, enterprise: 199
-    };
-    const fixedCOPPrices: Record<string, number> = {
-      'plan test': 1500
-    };
-    const fixedUSDPrices: Record<string, number> = {
-      'plan test': 0.39
-    };
-    const planDisplayNames: Record<string, string> = {
-      'plan test': 'Plan Test',
-      starter: 'Starter',
-      mini: 'Mini',
-      basico: 'Básico',
-      plus: 'Plus',
-      enterprise: 'Enterprise',
-    };
+  const planMessagesMap: Record<string, number> = {
+    'plan test': 250, starter: 250, mini: 500, basico: 1200, plus: 3500, enterprise: 7500,
+  };
+
+  const [showPayPalButtons, setShowPayPalButtons] = useState(false);
+  const paypalContainerRef = useRef<HTMLDivElement>(null);
+
+  const handlePayPalPayment = async () => {
+    if (!profile) return;
+    setRenewLoading(true);
+
+    try {
+      const selectedDbPlan = dbPlans.find(p => p.slug === selectedPlan.package);
+      if (!selectedDbPlan) return;
+
+      const user = getUser();
+      const paypal = (window as any).paypal;
+      if (!paypal) {
+        toast({ title: "Error", description: "PayPal SDK no se ha cargado. Intenta de nuevo.", variant: "destructive" });
+        setRenewLoading(false);
+        return;
+      }
+
+      // First create the subscription plan in our backend
+      const result = await api.payments.paypalCreateSubscription({
+        plan_name: pendingPlanName,
+        billing_period: selectedPlan.plan,
+        amount_usd: pendingPaymentUSD,
+        user_id: user?.id || profile.user.id,
+        id_plan: selectedDbPlan.id,
+        ai_responses_included: selectedDbPlan.messages,
+        type: pendingTransactionType,
+        return_url: `${window.location.origin}/dashboard`,
+        cancel_url: `${window.location.origin}/dashboard`,
+      });
+
+      if (!result?.paypal_plan_id) {
+        toast({ title: "Error", description: "No se pudo crear el plan en PayPal", variant: "destructive" });
+        setRenewLoading(false);
+        return;
+      }
+
+      // Show PayPal buttons container
+      setShowPayPalButtons(true);
+      setRenewLoading(false);
+
+      // Wait for DOM to render the container
+      setTimeout(() => {
+        if (!paypalContainerRef.current) return;
+        paypalContainerRef.current.innerHTML = '';
+
+        paypal.Buttons({
+          style: { shape: 'rect', color: 'gold', layout: 'vertical', label: 'subscribe' },
+          createSubscription: (_data: any, actions: any) => {
+            return actions.subscription.create({
+              plan_id: result.paypal_plan_id,
+            });
+          },
+          onApprove: async (data: any) => {
+            console.log('PayPal approved:', data);
+            setShowPayPalButtons(false);
+
+            try {
+              await api.payments.paypalActivateSubscription({
+                subscription_id: data.subscriptionID,
+                plan_name: pendingPlanName,
+                amount: pendingPaymentUSD,
+                id_plan: selectedDbPlan.id,
+                ai_responses_included: selectedDbPlan.messages,
+                type: pendingTransactionType,
+                email: profile.user.email,
+              });
+
+              toast({
+                title: "¡Pago exitoso!",
+                description: `Tu plan ${pendingPlanName} ha sido activado con PayPal.`,
+              });
+
+              const freshTx = await api.transactions.list();
+              setTransactions((freshTx as Transaction[]) || []);
+              const freshProfile = await api.profile.get();
+              setProfile(freshProfile as Profile);
+              setRenewModal(false);
+              setWantUpgrade(false);
+            } catch (err) {
+              console.error('PayPal activation error:', err);
+              toast({ title: "Error", description: "El pago fue aprobado pero hubo un error al activar. Contacta soporte.", variant: "destructive" });
+            }
+          },
+          onCancel: () => {
+            setShowPayPalButtons(false);
+            toast({ title: "Cancelado", description: "Has cancelado el pago con PayPal." });
+          },
+          onError: (err: any) => {
+            console.error('PayPal button error:', err);
+            setShowPayPalButtons(false);
+            toast({ title: "Error", description: "Error en el pago con PayPal", variant: "destructive" });
+          },
+        }).render(paypalContainerRef.current);
+      }, 100);
+
+    } catch (error) {
+      console.error('PayPal error:', error);
+      toast({ title: "Error", description: "Error al procesar el pago con PayPal", variant: "destructive" });
+      setRenewLoading(false);
+    }
+  };
+
+  const initiateRenewSubscription = async () => {
+    // Validar datos de facturación antes de cobrar
+    try {
+      const validation = await api.payments.validateInvoiceData();
+      if (validation && !validation.valid) {
+        setInvoiceErrors(validation.errors || []);
+        setEditProfileModal(true);
+        toast({
+          title: "Datos de facturación incompletos",
+          description: "Por favor completa los datos marcados antes de realizar el pago.",
+          variant: "destructive",
+        });
+        return;
+      }
+    } catch (err) {
+      console.error('Invoice validation error:', err);
+    }
+
+    const selectedDbPlan = dbPlans.find(p => p.slug === selectedPlan.package);
+    if (!selectedDbPlan) return;
+
+    const selectedPlanPrice = Number(selectedDbPlan.priceUSD);
+    const selectedPlanName = selectedDbPlan.name;
+
+    // Detect current plan for upgrade detection
+    const currentPlanId = profile?.company?.currentPlan || null;
+    const currentDbPlan = currentPlanId ? dbPlans.find(p => p.id === currentPlanId) : null;
+    const currentPlanPrice = currentDbPlan ? Number(currentDbPlan.priceUSD) : 0;
+    const isUpgradeNow = wantUpgrade && currentDbPlan && selectedPlanPrice > currentPlanPrice && upgradeWhen === 'now';
 
     const trm = exchangeRate?.rate ?? 4200;
-    const isFixedCOP = !!fixedCOPPrices[selectedPlan.package];
-    const monthlyPriceCOP = isFixedCOP ? fixedCOPPrices[selectedPlan.package] : Math.round((monthlyPricesUSD[selectedPlan.package] || 29) * trm);
-    
-    const discountMap = { mensual: 0, semestral: 0.10, anual: 0.15 };
-    const monthsMap = { mensual: 1, semestral: 6, anual: 12 };
-    const discount = discountMap[selectedPlan.plan];
-    const months = monthsMap[selectedPlan.plan];
+    const isFixedCOP = !!selectedDbPlan.fixedPriceCOP;
+
+    let chargeUSD = selectedPlanPrice;
+    if (isUpgradeNow) {
+      chargeUSD = selectedPlanPrice - currentPlanPrice;
+    }
+
+    const discountMap: Record<string, number> = { mensual: 0, semestral: 0.10, anual: 0.15 };
+    const monthsMap: Record<string, number> = { mensual: 1, semestral: 6, anual: 12 };
+    const discount = isUpgradeNow ? 0 : (discountMap[selectedPlan.plan] || 0);
+    const months = isUpgradeNow ? 1 : (monthsMap[selectedPlan.plan] || 1);
+
+    const monthlyPriceCOP = isFixedCOP ? selectedDbPlan.fixedPriceCOP : Math.round(chargeUSD * trm);
     const discountedMonthly = discount > 0 ? Math.round(monthlyPriceCOP * (1 - discount)) : monthlyPriceCOP;
     const amount = discountedMonthly * months;
-    
-    const suffixMap = { mensual: " - Mensual", semestral: " - Semestral", anual: " - Anual" };
-    const planDisplayName = planDisplayNames[selectedPlan.package] || selectedPlan.package;
-    
-    setPendingPaymentAmount(amount);
-    setPendingPlanName(planDisplayName + suffixMap[selectedPlan.plan]);
 
-    // Calculate USD amount for display
-    if (!isFixedCOP && monthlyPricesUSD[selectedPlan.package]) {
-      const monthlyUSD = monthlyPricesUSD[selectedPlan.package];
-      const discountedUSD = Math.round(monthlyUSD * (1 - discount) * 100) / 100;
-      setPendingPaymentUSD(discountedUSD * months);
-    } else if (fixedUSDPrices[selectedPlan.package]) {
-      const discountedUSD = Math.round(fixedUSDPrices[selectedPlan.package] * (1 - discount) * 100) / 100;
-      setPendingPaymentUSD(discountedUSD * months);
-    } else if (isFixedCOP) {
-      const copAmount = amount;
-      const usdAmount = convertToSelectedCurrency(copAmount);
-      setPendingPaymentUSD(Math.round(usdAmount * 100) / 100);
+    const suffixMap: Record<string, string> = { mensual: " - Mensual", semestral: " - Semestral", anual: " - Anual" };
+
+    setPendingPaymentAmount(amount);
+    setPendingPlanName(isUpgradeNow ? `Upgrade a ${selectedPlanName}` : selectedPlanName + (suffixMap[selectedPlan.plan] || " - Mensual"));
+    setPendingPaymentUSD(Math.round(chargeUSD * (1 - discount) * months * 100) / 100);
+    setPendingTransactionType(isUpgradeNow ? 'upgrade' : 'renewal');
+
+    // Trigger payment based on selected method
+    if (paymentMethod === 'paypal') {
+      setTriggerPayPalPayment(true);
     } else {
-      setPendingPaymentUSD(0);
+      setTriggerWompiPayment(true);
     }
-    // Trigger Wompi payment after state updates
-    setTriggerWompiPayment(true);
   };
 
   const handleConfirmRenewSubscription = async () => {
@@ -683,10 +962,26 @@ const Dashboard = () => {
         currency: currencyCode
       });
 
+      // Create pending transaction in DB
+      const selectedDbPlan = dbPlans.find(p => p.slug === selectedPlan.package);
+      const aiResponses = selectedDbPlan?.messages || 250;
+      const idPlan = selectedDbPlan?.id || null;
+      await api.transactions.createPending({
+        reference,
+        plan_name: pendingPlanName,
+        ai_responses_included: aiResponses,
+        amount: pendingPaymentAmount,
+        currency: currencyCode,
+        type: pendingTransactionType,
+        id_plan: idPlan,
+      });
+
       // Save pending payment info in localStorage (for redirect recovery)
       localStorage.setItem('pendingWompiPayment', JSON.stringify({
         reference,
         plan_name: pendingPlanName,
+        ai_responses_included: aiResponses,
+        id_plan: idPlan,
         amount: pendingPaymentAmount,
         currency: currencyCode,
         email: profile.user.email,
@@ -712,32 +1007,40 @@ const Dashboard = () => {
         // Clear pending payment
         localStorage.removeItem('pendingWompiPayment');
 
-        // Save transaction only if approved
-        if (transaction.status === 'APPROVED') {
-          await api.transactions.success({
-            email: profile.user.email,
-            plan_name: pendingPlanName,
-            ai_responses_included: 0,
-            amount: pendingPaymentAmount,
-            currency: currencyCode,
-            reference: reference,
-            transaction_id: transaction.id,
-            payment_method: transaction.paymentMethod?.type || 'CARD',
-            transaction_date: new Date().toISOString(),
-          });
-        }
+        // Update transaction status in DB
+        await api.transactions.update({
+          reference: reference,
+          status: transaction.status,
+          wompi_transaction_id: transaction.id,
+          payment_method: transaction.paymentMethod?.type || 'CARD',
+        });
 
         if (transaction.status === 'APPROVED') {
+          // If upgrade for next cycle, save nextPlan
+          if (pendingTransactionType === 'renewal' && wantUpgrade && upgradeWhen === 'next') {
+            const upgradePlan = dbPlans.find(p => p.slug === selectedPlan.package);
+            if (upgradePlan) {
+              await api.company.setNextPlan(upgradePlan.id);
+            }
+          }
+
           toast({
             title: "¡Pago exitoso!",
-            description: `Tu plan ${pendingPlanName} ha sido renovado.`,
+            description: pendingTransactionType === 'upgrade'
+              ? `Tu plan ha sido actualizado a ${pendingPlanName.replace('Upgrade a ', '')}.`
+              : wantUpgrade && upgradeWhen === 'next'
+                ? `Pago registrado. Tu plan cambiará en el próximo corte.`
+                : `Tu plan ${pendingPlanName} ha sido renovado.`,
           });
 
-          // Refresh transactions
+          // Refresh transactions and profile
           const txData = await api.transactions.list();
           setTransactions((txData as Transaction[]) || []);
+          const freshProfile = await api.profile.get();
+          setProfile(freshProfile as Profile);
           setRenewModal(false);
-          
+          setWantUpgrade(false);
+
           // Ask user to save card for automatic billing
           setTokenizeModal(true);
         } else if (transaction.status === 'DECLINED') {
@@ -987,7 +1290,7 @@ const Dashboard = () => {
               <Button
                 variant="default"
                 size="lg"
-                className="w-full text-lg font-bold py-6 animate-pulse hover:animate-none"
+                className="w-full text-lg font-bold py-6"
                 onClick={() => setConfigAgentModal(true)}
               >
                 <Bot className="w-6 h-6 mr-2" />
@@ -1013,7 +1316,17 @@ const Dashboard = () => {
                   variant="default"
                   size="lg"
                   className="w-full"
-                  onClick={() => window.open('https://www.ia.soyagentia.com/authentication/login', '_blank')}
+                  onClick={async () => {
+                    try {
+                      const result = await api.sso.generateCode();
+                      if (result?.code) {
+                        window.open(`https://www.ia.soyagentia.com/authentication/auto-login?code=${result.code}&source=conversia`, '_blank');
+                      }
+                    } catch (err) {
+                      console.error('SSO error:', err);
+                      window.open('https://www.ia.soyagentia.com/authentication/login', '_blank');
+                    }
+                  }}
                 >
                   🚀 Ingresar a la Plataforma
                 </Button>
@@ -1057,150 +1370,275 @@ const Dashboard = () => {
                       <DialogTrigger asChild>
                         <Button variant="default">
                           <CreditCard className="w-4 h-4 mr-2" />
-                          {t('dash.buyPlan')}
+                          {profile?.company?.currentPlan ? 'Renovar Suscripción' : t('dash.buyPlan')}
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>{t('dash.buyPlan')}</DialogTitle>
+                          <DialogTitle>{profile?.company?.currentPlan ? 'Renovar / Cambiar Plan' : t('dash.buyPlan')}</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4 pt-4">
-                          <div>
-                            <Label>{t('dash.package')}</Label>
-                            <Select 
-                              value={selectedPlan.package} 
-                              onValueChange={(val) => setSelectedPlan(prev => ({ ...prev, package: val }))}
-                            >
-                              <SelectTrigger className="mt-1">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="plan test" disabled={hasPurchasedPlanTest}>
-                                  Plan Test (250 resp/7 días){hasPurchasedPlanTest ? ' ✓ Ya adquirido' : ''}
-                                </SelectItem>
-                                <SelectItem value="starter">Starter (250 resp/mes)</SelectItem>
-                                <SelectItem value="mini">Mini (500 resp/mes)</SelectItem>
-                                <SelectItem value="basico">Básico (1,100 resp/mes)</SelectItem>
-                                <SelectItem value="plus">Plus (3,500 resp/mes)</SelectItem>
-                                <SelectItem value="enterprise">Enterprise (7,500 resp/mes)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label>{t('dash.planType')}</Label>
-                            <Select 
-                              value={selectedPlan.plan} 
-                              onValueChange={(val: "mensual" | "semestral" | "anual") => setSelectedPlan(prev => ({ ...prev, plan: val }))}
-                            >
-                              <SelectTrigger className="mt-1">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="mensual">{t('dash.monthly')}</SelectItem>
-                                <SelectItem value="semestral">{t('dash.semiannual')}</SelectItem>
-                                <SelectItem value="anual">{t('dash.annual')}</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          
-                          {/* Price Display */}
                           {(() => {
-                            const monthlyPricesUSD2: Record<string, number> = {
-                              'plan test': 0, starter: 15, mini: 29, basico: 59, plus: 99, enterprise: 199
-                            };
-                            
-                            const discountMap2 = { mensual: 0, semestral: 0.10, anual: 0.15 };
-                            const monthsMap2 = { mensual: 1, semestral: 6, anual: 12 };
-                            const discount = discountMap2[selectedPlan.plan];
-                            const months = monthsMap2[selectedPlan.plan];
-                            const monthlyUSD = monthlyPricesUSD2[selectedPlan.package] ?? 29;
-                            const discountedMonthly = discount > 0 ? Math.round(monthlyUSD * (1 - discount) * 100) / 100 : monthlyUSD;
+                            const allPlans = dbPlans.map(p => ({
+                              id: p.id,
+                              key: p.slug,
+                              name: p.name,
+                              messages: p.messages,
+                              priceUSD: Number(p.priceUSD),
+                              fixedPriceCOP: p.fixedPriceCOP,
+                              isTrial: p.isTrial === 1,
+                              trialDays: p.trialDays,
+                            }));
+
+                            const currentPlanId = profile?.company?.currentPlan || null;
+                            const currentPlanObj = currentPlanId ? allPlans.find(p => p.id === currentPlanId) : null;
+                            const currentPlanPrice = currentPlanObj?.priceUSD || 0;
+                            const currentPlanMessages = profile?.company?.counterMessages || currentPlanObj?.messages || 0;
+                            const isFirstPurchase = !currentPlanObj;
+
+                            const selectedPlanObj = allPlans.find(p => p.key === selectedPlan.package);
+                            const selectedPlanPrice = selectedPlanObj?.priceUSD || 0;
+                            const selectedPlanMessages = selectedPlanObj?.messages || 0;
+
+                            const isDifferentPlan = currentPlanObj && selectedPlanObj && selectedPlanObj.id !== currentPlanObj.id;
+                            const isHigherPlan = isDifferentPlan && selectedPlanPrice > currentPlanPrice;
+                            const isLowerPlan = isDifferentPlan && selectedPlanPrice < currentPlanPrice;
+
+                            // Upgrade NOW = pay difference, upgrade NEXT = pay full (renewal with new plan)
+                            const isUpgradeNow = wantUpgrade && isHigherPlan && upgradeWhen === 'now';
+                            const isUpgradeNext = wantUpgrade && isHigherPlan && upgradeWhen === 'next';
+
+                            const discountMap2: Record<string, number> = { mensual: 0, semestral: 0.10, anual: 0.15 };
+                            const monthsMap2: Record<string, number> = { mensual: 1, semestral: 6, anual: 12 };
+                            const discount = isUpgradeNow ? 0 : (discountMap2[selectedPlan.plan] || 0);
+                            const months = isUpgradeNow ? 1 : (monthsMap2[selectedPlan.plan] || 1);
+
+                            let chargeUSD = selectedPlanPrice;
+                            if (isUpgradeNow) {
+                              chargeUSD = selectedPlanPrice - currentPlanPrice;
+                            }
+                            const discountedMonthly = discount > 0 ? Math.round(chargeUSD * (1 - discount) * 100) / 100 : chargeUSD;
                             const totalPrice = Math.round(discountedMonthly * months * 100) / 100;
-                            const savings = discount > 0 ? Math.round((monthlyUSD * months - totalPrice) * 100) / 100 : 0;
                             const periodLabel = selectedPlan.plan === "anual" ? t('dash.for12Months') : selectedPlan.plan === "semestral" ? t('dash.for6Months') : t('dash.for1Month');
-                            const discountPct = Math.round(discount * 100);
-                            const isPlanTest = selectedPlan.package === 'plan test';
-                            
+
                             return (
-                              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 space-y-2">
-                                {isPlanTest ? (
-                                  <>
+                              <>
+                                {/* Current plan info */}
+                                {currentPlanObj && (
+                                  <div className="bg-secondary/50 border border-border rounded-lg p-4">
+                                    <div className="text-sm text-muted-foreground mb-1">Tu plan actual</div>
                                     <div className="flex justify-between items-center">
-                                      <span className="text-muted-foreground">Plan</span>
-                                      <span className="font-bold">$0 USD</span>
+                                      <span className="font-bold text-lg">{currentPlanObj.name}</span>
+                                      <span className="text-sm">{currentPlanMessages.toLocaleString('es-CO')} mensajes · ${currentPlanPrice} USD/mes</span>
                                     </div>
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-muted-foreground">Cobro de verificación</span>
-                                      <span className="font-bold">$0.39 USD</span>
+                                  </div>
+                                )}
+
+                                {/* Upgrade checkbox - only if has current plan */}
+                                {currentPlanObj && (
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={wantUpgrade}
+                                      onChange={(e) => {
+                                        setWantUpgrade(e.target.checked);
+                                        if (!e.target.checked) {
+                                          // Reset to current plan
+                                          setSelectedPlan(prev => ({ ...prev, package: currentPlanObj.key }));
+                                        }
+                                      }}
+                                      className="accent-primary w-4 h-4"
+                                    />
+                                    <span className="font-medium text-sm">Mejorar plan</span>
+                                  </label>
+                                )}
+
+                                {/* Plan selector - show when upgrading or first purchase */}
+                                {(isFirstPurchase || wantUpgrade) && (
+                                  <div>
+                                    <Label>{isFirstPurchase ? t('dash.package') : 'Selecciona el nuevo plan'}</Label>
+                                    <Select
+                                      value={selectedPlan.package}
+                                      onValueChange={(val) => setSelectedPlan(prev => ({ ...prev, package: val }))}
+                                    >
+                                      <SelectTrigger className="mt-1">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {isFirstPurchase && (
+                                          <SelectItem value="plan-test" disabled={hasPurchasedPlanTest}>
+                                            Plan Test (250 resp/7 días){hasPurchasedPlanTest ? ' ✓ Ya adquirido' : ''}
+                                          </SelectItem>
+                                        )}
+                                        {allPlans.filter(p => !p.isTrial).map(p => (
+                                          <SelectItem key={p.key} value={p.key} disabled={wantUpgrade && p.priceUSD <= currentPlanPrice}>
+                                            {p.name} ({p.messages.toLocaleString('es-CO')} resp/mes) - ${p.priceUSD} USD
+                                            {wantUpgrade && p.priceUSD > currentPlanPrice ? ' ↑' : ''}
+                                            {currentPlanObj && p.id === currentPlanObj.id ? ' (actual)' : ''}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+
+                                {/* When to apply - only when upgrading to higher plan */}
+                                {wantUpgrade && isHigherPlan && (
+                                  <div>
+                                    <Label>¿Cuándo quieres que aplique?</Label>
+                                    <div className="flex gap-3 mt-2">
+                                      <label className={`flex items-center gap-2 border rounded-lg px-4 py-3 cursor-pointer flex-1 ${upgradeWhen === 'now' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                                        <input type="radio" name="upgradeWhen" value="now" checked={upgradeWhen === 'now'} onChange={() => setUpgradeWhen('now')} className="accent-primary" />
+                                        <div>
+                                          <span className="font-medium text-sm block">Ahora</span>
+                                          <span className="text-xs text-muted-foreground">Pagas ${(selectedPlanPrice - currentPlanPrice).toFixed(2)} USD (diferencia)</span>
+                                        </div>
+                                      </label>
+                                      <label className={`flex items-center gap-2 border rounded-lg px-4 py-3 cursor-pointer flex-1 ${upgradeWhen === 'next' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                                        <input type="radio" name="upgradeWhen" value="next" checked={upgradeWhen === 'next'} onChange={() => setUpgradeWhen('next')} className="accent-primary" />
+                                        <div>
+                                          <span className="font-medium text-sm block">Próximo corte</span>
+                                          <span className="text-xs text-muted-foreground">Pagas ${selectedPlanPrice} USD (completo)</span>
+                                        </div>
+                                      </label>
                                     </div>
-                                    <div className="border-t border-border pt-2 mt-2">
-                                      <div className="flex justify-between items-center">
-                                        <span className="font-medium">{t('dash.totalToPay')}</span>
-                                        <span className="text-xl font-bold text-primary">$0.39 USD</span>
+                                  </div>
+                                )}
+
+                                {/* Downgrade notice */}
+                                {wantUpgrade && isLowerPlan && (
+                                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-sm">
+                                    <span className="font-medium text-yellow-600">No puedes bajar de plan desde aquí</span>
+                                    <p className="text-muted-foreground mt-1">
+                                      Para bajar de plan, selecciona un plan superior o renueva tu plan actual.
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* Period selector - only for renewals (not upgrade now) */}
+                                {!isUpgradeNow && (
+                                  <div>
+                                    <Label>{t('dash.planType')}</Label>
+                                    <Select
+                                      value={selectedPlan.plan}
+                                      onValueChange={(val: "mensual" | "semestral" | "anual") => setSelectedPlan(prev => ({ ...prev, plan: val }))}
+                                    >
+                                      <SelectTrigger className="mt-1">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="mensual">{t('dash.monthly')}</SelectItem>
+                                        <SelectItem value="semestral">{t('dash.semiannual')}</SelectItem>
+                                        <SelectItem value="anual">{t('dash.annual')}</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+
+                                {/* Price summary */}
+                                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 space-y-2">
+                                  {isUpgradeNow ? (
+                                    <>
+                                      <div className="flex justify-between items-center text-sm">
+                                        <span className="text-muted-foreground">{selectedPlanObj?.name}</span>
+                                        <span>${selectedPlanPrice} USD</span>
                                       </div>
-                                      <p className="text-xs text-muted-foreground text-right">
-                                        Prueba de 7 días
-                                      </p>
-                                    </div>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-muted-foreground">{t('dash.monthlyPrice')}</span>
-                                      <span className={discount > 0 ? "line-through text-muted-foreground" : "font-bold"}>
-                                        ${Math.round(monthlyUSD)} USD
-                                      </span>
-                                    </div>
-                                    {discount > 0 && (
-                                      <>
+                                      <div className="flex justify-between items-center text-sm">
+                                        <span className="text-muted-foreground">- {currentPlanObj?.name} (plan actual)</span>
+                                        <span>-${currentPlanPrice} USD</span>
+                                      </div>
+                                      <div className="border-t border-border pt-2 mt-2">
                                         <div className="flex justify-between items-center">
-                                          <span className="text-muted-foreground">{t('dash.withDiscount')}</span>
-                                          <span className="font-bold text-primary">
-                                            ${Math.round(discountedMonthly)} USD/mes
-                                          </span>
+                                          <span className="font-medium">{t('dash.totalToPay')}</span>
+                                          <span className="text-xl font-bold text-primary">${totalPrice} USD</span>
                                         </div>
-                                        <div className="flex justify-between items-center text-accent">
-                                          <span>{t('dash.youSave')}</span>
-                                          <span className="font-semibold">${Math.round(savings)} USD ({discountPct}%)</span>
-                                        </div>
-                                      </>
-                                    )}
-                                    <div className="border-t border-border pt-2 mt-2">
+                                        <p className="text-xs text-muted-foreground text-right">Diferencia de upgrade · Aplica inmediatamente</p>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
                                       <div className="flex justify-between items-center">
-                                        <span className="font-medium">{t('dash.totalToPay')}</span>
-                                        <span className="text-xl font-bold text-primary">
-                                          ${Math.round(totalPrice)} USD
+                                        <span className="text-muted-foreground">{t('dash.monthlyPrice')}</span>
+                                        <span className={discount > 0 ? "line-through text-muted-foreground" : "font-bold"}>
+                                          ${Math.round(selectedPlanPrice)} USD
                                         </span>
                                       </div>
-                                      <p className="text-xs text-muted-foreground text-right">
-                                        {periodLabel}
-                                      </p>
-                                    </div>
-                                  </>
+                                      {discount > 0 && (
+                                        <div className="flex justify-between items-center text-accent">
+                                          <span>{t('dash.youSave')}</span>
+                                          <span className="font-semibold">{Math.round(discount * 100)}%</span>
+                                        </div>
+                                      )}
+                                      <div className="border-t border-border pt-2 mt-2">
+                                        <div className="flex justify-between items-center">
+                                          <span className="font-medium">{t('dash.totalToPay')}</span>
+                                          <span className="text-xl font-bold text-primary">${totalPrice} USD</span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground text-right">{periodLabel}</p>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+
+                                {hasPurchasedPlanTest && selectedPlan.package === 'plan-test' && (
+                                  <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive">
+                                    Ya has adquirido el Plan Test anteriormente. Este plan solo se puede comprar una vez.
+                                  </div>
                                 )}
-                              </div>
+
+                                {/* Payment method selector */}
+                                <div>
+                                  <Label>Método de pago</Label>
+                                  <div className="flex gap-3 mt-2">
+                                    <label className={`flex items-center gap-2 border rounded-lg px-4 py-3 cursor-pointer flex-1 ${paymentMethod === 'wompi' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                                      <input type="radio" name="paymentMethod" value="wompi" checked={paymentMethod === 'wompi'} onChange={() => { setPaymentMethod('wompi'); setShowPayPalButtons(false); }} className="accent-primary" />
+                                      <span className="font-medium text-sm">Wompi</span>
+                                      <span className="text-xs text-muted-foreground">(COP)</span>
+                                    </label>
+                                    <label className={`flex items-center gap-2 border rounded-lg px-4 py-3 cursor-pointer flex-1 ${paymentMethod === 'paypal' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                                      <input type="radio" name="paymentMethod" value="paypal" checked={paymentMethod === 'paypal'} onChange={() => setPaymentMethod('paypal')} className="accent-primary" />
+                                      <span className="font-medium text-sm">PayPal</span>
+                                      <span className="text-xs text-muted-foreground">(USD)</span>
+                                    </label>
+                                  </div>
+                                </div>
+
+                                {/* PayPal buttons container */}
+                                {showPayPalButtons && (
+                                  <div ref={paypalContainerRef} className="w-full min-h-[150px]" />
+                                )}
+
+                                {!showPayPalButtons && (
+                                <Button
+                                  onClick={initiateRenewSubscription}
+                                  className="w-full"
+                                  variant="default"
+                                  disabled={renewLoading || (wantUpgrade && isLowerPlan) || (hasPurchasedPlanTest && selectedPlan.package === 'plan-test')}
+                                >
+                                  {renewLoading ? (
+                                    <>
+                                      <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />
+                                      {t('dash.processing')}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CreditCard className="w-4 h-4 mr-2" />
+                                      {isUpgradeNow
+                                        ? `Subir a ${selectedPlanObj?.name} ahora`
+                                        : isUpgradeNext
+                                          ? `Renovar con ${selectedPlanObj?.name}`
+                                          : wantUpgrade && !isDifferentPlan
+                                            ? 'Selecciona un plan superior'
+                                            : isFirstPurchase
+                                              ? t('dash.buy')
+                                              : 'Renovar plan'}
+                                    </>
+                                  )}
+                                </Button>
+                                )}
+                              </>
                             );
                           })()}
-                          
-                          {hasPurchasedPlanTest && selectedPlan.package === 'plan test' && (
-                            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive">
-                              Ya has adquirido el Plan Test anteriormente. Este plan solo se puede comprar una vez.
-                            </div>
-                          )}
-                          
-                          <Button onClick={initiateRenewSubscription} className="w-full" variant="default" disabled={renewLoading || (hasPurchasedPlanTest && selectedPlan.package === 'plan test')}>
-                            {renewLoading ? (
-                              <>
-                                <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />
-                                {t('dash.processing')}
-                              </>
-                            ) : (
-                              <>
-                                <CreditCard className="w-4 h-4 mr-2" />
-                                {t('dash.buy')}
-                              </>
-                            )}
-                          </Button>
                         </div>
                       </DialogContent>
                     </Dialog>
@@ -1628,8 +2066,28 @@ const Dashboard = () => {
             {/* Profile Tab */}
             <TabsContent value="profile">
               <div className="glass-card p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold">{t('dash.myInfo')}</h3>
+                {/* Account type badge */}
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border/50">
+                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
+                    profile?.company?.accountType === 'empresa'
+                      ? 'bg-gradient-to-br from-primary/20 to-accent/20'
+                      : 'bg-gradient-to-br from-blue-500/20 to-purple-500/20'
+                  }`}>
+                    {profile?.company?.accountType === 'empresa'
+                      ? <Building2 className="w-7 h-7 text-primary" />
+                      : <User className="w-7 h-7 text-blue-500" />
+                    }
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-lg font-bold">{profile?.company?.name || profile?.user?.name}</h2>
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                      profile?.company?.accountType === 'empresa'
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-blue-500/10 text-blue-500'
+                    }`}>
+                      {profile?.company?.accountType === 'empresa' ? 'Empresa' : 'Persona'}
+                    </span>
+                  </div>
                   <Dialog open={editProfileModal} onOpenChange={setEditProfileModal}>
                     <DialogTrigger asChild>
                       <Button variant="outline">
@@ -1641,45 +2099,109 @@ const Dashboard = () => {
                       <DialogHeader>
                         <DialogTitle>{t('dash.editProfile')}</DialogTitle>
                       </DialogHeader>
-                      <div className="space-y-4 pt-4">
+                      {(() => {
+                        const fields = ['name', 'phone', 'address', 'city', 'country'];
+                        if (profile?.company?.accountType === 'empresa') fields.push('nit');
+                        else { fields.push('documentType'); fields.push('documentNumber'); }
+                        const currentErrors = fields.map(f => getFieldError(f)).filter(Boolean) as string[];
+                        if (currentErrors.length === 0) return null;
+                        return (
+                          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
+                            <p className="text-sm font-medium text-destructive mb-1">Completa los siguientes datos para facturación:</p>
+                            <ul className="text-xs text-destructive/80 space-y-1">
+                              {currentErrors.map((err, i) => <li key={i}>• {err}</li>)}
+                            </ul>
+                          </div>
+                        );
+                      })()}
+                      <div className="space-y-4 pt-2">
                         <div>
-                          <Label>{t('dash.name')}</Label>
+                          <Label>{t('dash.name')} (nombre y apellido)</Label>
                           <Input
                             value={editForm.name}
                             onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                            className="mt-1"
+                            placeholder="Nombre Apellido"
+                            className={`mt-1 ${getFieldError('name') ? 'border-destructive' : editForm.name.trim() ? 'border-green-500' : ''}`}
                           />
+                          {getFieldError('name') && <p className="text-xs text-destructive mt-1">{getFieldError('name')}</p>}
                         </div>
                         <div>
                           <Label>{t('dash.phone')}</Label>
                           <Input
                             value={editForm.phone}
                             onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                            className="mt-1"
+                            className={`mt-1 ${getFieldError('phone') ? 'border-destructive' : editForm.phone ? 'border-green-500' : ''}`}
                           />
+                          {getFieldError('phone') && <p className="text-xs text-destructive mt-1">{getFieldError('phone')}</p>}
                         </div>
                         <div>
                           <Label>{t('dash.address')}</Label>
                           <Input
                             value={editForm.address}
                             onChange={(e) => setEditForm(prev => ({ ...prev, address: e.target.value }))}
-                            className="mt-1"
+                            className={`mt-1 ${getFieldError('address') ? 'border-destructive' : editForm.address.trim() ? 'border-green-500' : ''}`}
                           />
+                          {getFieldError('address') && <p className="text-xs text-destructive mt-1">{getFieldError('address')}</p>}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label>Ciudad</Label>
+                            <Input
+                              value={editForm.city}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, city: e.target.value }))}
+                              placeholder="Ej: Medellín"
+                              className={`mt-1 ${getFieldError('city') ? 'border-destructive' : editForm.city.trim() ? 'border-green-500' : ''}`}
+                            />
+                            {getFieldError('city') && <p className="text-xs text-destructive mt-1">{getFieldError('city')}</p>}
+                          </div>
+                          <div>
+                            <Label>País</Label>
+                            <div className={`mt-1 ${getFieldError('country') ? '[&>button]:border-destructive' : editForm.country ? '[&>button]:border-green-500' : ''}`}>
+                              <CountrySelect
+                                value={editForm.country}
+                                onValueChange={(val) => {
+                                  const wasCol = !editForm.country || editForm.country.toLowerCase() === 'colombia';
+                                  const isCol = val.toLowerCase() === 'colombia';
+                                  // Resetear tipo de documento si cambió entre Colombia y otro país
+                                  const resetDoc = wasCol !== isCol ? { documentType: '' } : {};
+                                  setEditForm(prev => ({ ...prev, country: val, ...resetDoc }));
+                                }}
+                              />
+                            </div>
+                            {getFieldError('country') && <p className="text-xs text-destructive mt-1">{getFieldError('country')}</p>}
+                          </div>
                         </div>
                         {profile?.company?.accountType === 'persona' ? (
                           <>
                             <div>
                               <Label>{t('dash.docType')}</Label>
-                              <select
-                                value={editForm.documentType}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, documentType: e.target.value }))}
-                                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                              >
-                                <option value="">{t('dash.selectType')}</option>
-                                <option value="CC">Cédula de Ciudadanía</option>
-                                <option value="CE">Cédula de Extranjería</option>
-                                <option value="Pasaporte">Pasaporte</option>
-                              </select>
+                              {(() => {
+                                const isCol = !editForm.country || editForm.country.toLowerCase() === 'colombia';
+                                return (
+                                  <select
+                                    value={editForm.documentType}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, documentType: e.target.value }))}
+                                    className={`mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm ${getFieldError('documentType') ? 'border-destructive' : editForm.documentType ? 'border-green-500' : 'border-input'}`}
+                                  >
+                                    <option value="">{t('dash.selectType')}</option>
+                                    {isCol ? (
+                                      <>
+                                        <option value="CC">Cédula de Ciudadanía</option>
+                                        <option value="CE">Cédula de Extranjería</option>
+                                        <option value="TI">Tarjeta de Identidad</option>
+                                        <option value="PP">Pasaporte</option>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <option value="PP">Pasaporte</option>
+                                        <option value="DNI">DNI / Documento Nacional</option>
+                                        <option value="CE">Documento de Extranjería</option>
+                                      </>
+                                    )}
+                                  </select>
+                                );
+                              })()}
+                              {getFieldError('documentType') && <p className="text-xs text-destructive mt-1">{getFieldError('documentType')}</p>}
                             </div>
                             <div>
                               <Label>{t('dash.docNumber')}</Label>
@@ -1687,21 +2209,35 @@ const Dashboard = () => {
                                 value={editForm.documentNumber}
                                 onChange={(e) => setEditForm(prev => ({ ...prev, documentNumber: e.target.value }))}
                                 placeholder={t('dash.enterDocNumber')}
-                                className="mt-1"
+                                className={`mt-1 ${getFieldError('documentNumber') ? 'border-destructive' : editForm.documentNumber.trim() ? 'border-green-500' : ''}`}
                               />
+                              {getFieldError('documentNumber') && <p className="text-xs text-destructive mt-1">{getFieldError('documentNumber')}</p>}
                             </div>
                           </>
                         ) : (
                           <div>
-                            <Label>{t('dash.nit')}</Label>
-                            <Input
-                              value={editForm.nit}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, nit: e.target.value }))}
-                              className="mt-1"
-                            />
+                            {(() => {
+                              const isCol = !editForm.country || editForm.country.toLowerCase() === 'colombia';
+                              return (<>
+                                <Label>{isCol ? `${t('dash.nit')} (con dígito de verificación)` : 'Identificación fiscal'}</Label>
+                                <Input
+                                  value={editForm.nit}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, nit: e.target.value }))}
+                                  placeholder={isCol ? 'Ej: 901976734-4' : 'Número de identificación fiscal'}
+                                  className={`mt-1 ${getFieldError('nit') ? 'border-destructive' : editForm.nit.trim() && !getFieldError('nit') ? 'border-green-500' : ''}`}
+                                />
+                                {getFieldError('nit') && <p className="text-xs text-destructive mt-1">{getFieldError('nit')}</p>}
+                                {isCol && editForm.nit && validateNitDv(editForm.nit).valid && (
+                                  <p className="text-xs text-green-500 mt-1">NIT válido</p>
+                                )}
+                                {!isCol && editForm.nit.trim() && !getFieldError('nit') && (
+                                  <p className="text-xs text-green-500 mt-1">Identificación fiscal registrada</p>
+                                )}
+                              </>);
+                            })()}
                           </div>
                         )}
-                        <Button onClick={handleUpdateProfile} className="w-full">
+                        <Button onClick={handleUpdateProfile} className="w-full" disabled={!isEditFormValid()}>
                           {t('dash.saveChanges')}
                         </Button>
                       </div>
@@ -1709,6 +2245,7 @@ const Dashboard = () => {
                   </Dialog>
                 </div>
 
+                <h3 className="text-lg font-semibold mb-4">{t('dash.myInfo')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div>
@@ -1749,6 +2286,12 @@ const Dashboard = () => {
                       <span className="text-muted-foreground text-sm">{t('dash.memberSince') || 'Miembro desde'}</span>
                       <p className="font-medium">{profile?.company?.entryDate ? format(new Date(profile.company.entryDate), "dd MMM yyyy", { locale: dateLocale }) : "-"}</p>
                     </div>
+                    {(profile?.company?.city || profile?.company?.country) && (
+                    <div>
+                      <span className="text-muted-foreground text-sm">Ubicación</span>
+                      <p className="font-medium">{[profile?.company?.city, profile?.company?.country].filter(Boolean).join(', ') || "-"}</p>
+                    </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -115,6 +115,11 @@ export const api = {
     update: (data: any) => patch('/conversia/profile', data),
   },
 
+  // ==================== COMPANY ====================
+  company: {
+    setNextPlan: (idPlan: number) => patch('/conversia/company/next-plan', { idPlan }),
+  },
+
   // ==================== SUBSCRIPTIONS ====================
   subscriptions: {
     list: async () => convertKeysToSnake(await get('/conversia/subscriptions')),
@@ -154,6 +159,11 @@ export const api = {
   // ==================== PAYPAL PLANS ====================
   plans: {
     list: () => get('/conversia/auth/plans'),
+  },
+
+  // ==================== SSO ====================
+  sso: {
+    generateCode: () => post('/conversia/sso-code', {}),
   },
 
   // ==================== ROLES CONVERSIA ====================
@@ -200,5 +210,6 @@ export const api = {
     renewalPayment: (data: any) => post('/conversia/payments/renewal-payment', data),
     searchByDocument: (data: any) => post('/conversia/payments/search-by-document', data),
     siigoGetInvoicePdf: (data: any) => post('/conversia/payments/siigo-invoice-pdf', data),
+    validateInvoiceData: () => post('/conversia/payments/validate-invoice-data', {}),
   },
 };
