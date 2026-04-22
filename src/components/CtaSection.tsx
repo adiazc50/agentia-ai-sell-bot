@@ -50,12 +50,9 @@ const CtaSection = () => {
             {t("cta.subtitle")}
           </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+          <div className="flex justify-center gap-6 mb-12">
             {[
               { icon: Clock, value: "24/7", label: t("hero.stat.support") },
-              { icon: Users, value: "10K", label: "calls/min" },
-              { icon: TrendingUp, value: "ROI", label: "1st month" },
-              { icon: MessageCircle, value: "100%", label: "Automated" },
             ].map((s, i) => (
               <div key={i} className="text-center">
                 <div className="flex items-center justify-center mb-2">
@@ -65,16 +62,6 @@ const CtaSection = () => {
                 <p className="text-sm text-muted-foreground">{s.label}</p>
               </div>
             ))}
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-            <Button asChild size="lg" className="bg-gradient-primary hover:shadow-glow-primary transition-all duration-300 text-xl px-12 py-8 group min-w-[280px]">
-              <a href={waHref} target="_blank" rel="noopener noreferrer">
-                <MessageCircle className="mr-3 group-hover:scale-110 transition-transform" size={24} />
-                {t("cta.whatsapp")}
-                <ArrowRight className="ml-3 group-hover:translate-x-2 transition-transform" size={24} />
-              </a>
-            </Button>
           </div>
 
           <div className="mt-12 space-y-4">

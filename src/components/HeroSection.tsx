@@ -25,7 +25,7 @@ function useCityFromPath() {
     const slug = match[1];
     return CITY_LABEL[slug] ?? slug.replace(/-/g, " ");
   }
-  return "Colombia";
+  return null;
 }
 
 const HeroSection = () => {
@@ -101,7 +101,7 @@ const HeroSection = () => {
                         {t("hero.worldwide")}
                       </span>
                       <p className="text-sm font-bold text-foreground leading-tight">
-                        {city === "Colombia" ? t("hero.countriesCities") : t("hero.cityAndWorld", { city })}
+                        {city ? t("hero.cityAndWorld", { city }) : t("hero.countriesCities")}
                       </p>
                       <p className="text-xs text-muted-foreground">{t("hero.implementation")}</p>
                     </div>
@@ -118,7 +118,7 @@ const HeroSection = () => {
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-primary/15 to-accent/15 border border-primary/40"
                 >
                   <MapPin className="w-4 h-4 text-primary" />
-                  <span className="text-sm text-primary font-semibold">{t("hero.badge.aiAgents", { city })}</span>
+                  <span className="text-sm text-primary font-semibold">{city ? t("hero.badge.aiAgents", { city }) : t("hero.badge.aiAgentsOnly")}</span>
                   <Zap className="w-4 h-4 text-accent" />
                 </motion.div>
                 <motion.div
@@ -139,12 +139,20 @@ const HeroSection = () => {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight mb-6 text-foreground"
               >
-                {t("hero.aiAgentsIn")}{" "}
-                <span className="relative inline-block">
-                  <span className="gradient-text drop-shadow-[0_0_25px_hsl(152_69%_41%/0.3)]">{city}</span>
-                  <span className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary rounded-full opacity-80" />
-                </span>
-                {t("hero.salesAutomation")}
+                {city ? (
+                  <>
+                    {t("hero.aiAgentsIn")}{" "}
+                    <span className="relative inline-block">
+                      <span className="gradient-text drop-shadow-[0_0_25px_hsl(152_69%_41%/0.3)]">{city}</span>
+                      <span className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary rounded-full opacity-80" />
+                    </span>
+                  </>
+                ) : (
+                  <span className="relative inline-block">
+                    <span className="gradient-text drop-shadow-[0_0_25px_hsl(152_69%_41%/0.3)]">{t("hero.aiAgentsTitle")}</span>
+                    <span className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary rounded-full opacity-80" />
+                  </span>
+                )}
               </motion.h1>
 
               {/* Subtítulo */}
@@ -155,7 +163,7 @@ const HeroSection = () => {
                 className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10"
               >
                 {t("hero.subtitle")}
-                {" "}{t("hero.subtitleCity", { city })}
+                {" "}{city ? t("hero.subtitleCity", { city }) : t("hero.subtitleGeneric")}
               </motion.p>
 
               {/* CTA Buttons */}
@@ -180,11 +188,7 @@ const HeroSection = () => {
                   variant="outline"
                   size="lg"
                   className="border-primary/50 text-primary hover:bg-primary/10 text-lg px-8 py-6"
-                  onClick={() => {
-                    const el = document.querySelector('#casos-de-uso');
-                    if (el) (el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    else window.location.hash = 'casos-de-uso';
-                  }}
+                  onClick={() => window.location.href = '/casos-de-uso'}
                 >
                   {t("hero.ctaUseCases")}
                 </Button>

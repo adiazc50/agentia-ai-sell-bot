@@ -14,6 +14,7 @@ const es: Record<string, string> = {
   "nav.register": "Crear cuenta",
   "nav.logout": "Cerrar sesión",
   "nav.myAccount": "Mi cuenta",
+  "nav.useCases": "Casos de uso",
 
   // Hero
   "hero.worldwide": "Cobertura mundial",
@@ -21,7 +22,7 @@ const es: Record<string, string> = {
   "hero.cityAndWorld": "{city} y todo el mundo",
   "hero.implementation": "Implementación en 5 minutos",
   "hero.aiAgentsIn": "Agentes de IA en",
-  "hero.salesAutomation": ": ventas y automatización 24/7",
+  "hero.salesAutomation": "",
   "hero.subtitle": "Automatiza ventas, marketing y soporte con agentes conversacionales integrados a WhatsApp, web y CRM.",
   "hero.subtitleCity": "Implementación ágil y soporte continuo para empresas en {city}.",
   "hero.ctaWhatsapp": "Contactar por WhatsApp",
@@ -31,7 +32,10 @@ const es: Record<string, string> = {
   "hero.stat.support": "Atención continua",
   "hero.trustLine": "Más que una agencia: desarrollo propio en IA y robótica para resultados medibles",
   "hero.badge.aiAgents": "Agentes de IA en {city}",
+  "hero.badge.aiAgentsOnly": "Agentes de IA",
   "hero.badge.quickSetup": "Implementación en 5 minutos",
+  "hero.aiAgentsTitle": "Agentes de IA",
+  "hero.subtitleGeneric": "Implementación ágil y soporte continuo para empresas en todo el mundo.",
 
   // Features / Use Cases
   "features.title": "¿Qué puede hacer tu",
@@ -68,8 +72,8 @@ const es: Record<string, string> = {
   "pricing.cancelAnytime": "Cancela cuando quieras",
 
   // CTA
-  "cta.title": "¿Estás listo para tener un",
-  "cta.titleHighlight": "robot vendiendo",
+  "cta.title": "¿Estás listo para tener una",
+  "cta.titleHighlight": "IA vendiendo",
   "cta.titleEnd": "por ti?",
   "cta.subtitle": "No esperes más. Transforma tu empresa hoy mismo con agentes de IA que trabajan 24/7 para hacer crecer tu negocio.",
   "cta.whatsapp": "Contáctanos por WhatsApp",

@@ -14,6 +14,7 @@ const en: Record<string, string> = {
   "nav.register": "Create account",
   "nav.logout": "Sign out",
   "nav.myAccount": "My account",
+  "nav.useCases": "Use Cases",
 
   // Hero
   "hero.worldwide": "Worldwide coverage",
@@ -21,7 +22,7 @@ const en: Record<string, string> = {
   "hero.cityAndWorld": "{city} and worldwide",
   "hero.implementation": "Setup in 5 minutes",
   "hero.aiAgentsIn": "AI Agents in",
-  "hero.salesAutomation": ": sales and 24/7 automation",
+  "hero.salesAutomation": "",
   "hero.subtitle": "Automate sales, marketing, and support with conversational AI agents integrated with WhatsApp, web, and CRM.",
   "hero.subtitleCity": "Agile implementation and continuous support for businesses in {city}.",
   "hero.ctaWhatsapp": "Contact via WhatsApp",
@@ -31,7 +32,10 @@ const en: Record<string, string> = {
   "hero.stat.support": "Continuous support",
   "hero.trustLine": "More than an agency: proprietary AI and robotics development for measurable results",
   "hero.badge.aiAgents": "AI Agents in {city}",
+  "hero.badge.aiAgentsOnly": "AI Agents",
   "hero.badge.quickSetup": "Setup in 5 minutes",
+  "hero.aiAgentsTitle": "AI Agents",
+  "hero.subtitleGeneric": "Agile implementation and continuous support for businesses worldwide.",
 
   // Features
   "features.title": "What can your",

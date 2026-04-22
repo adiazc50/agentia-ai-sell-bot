@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Phone, MessageSquare, ShoppingCart, CreditCard, Calendar, Bot, Target, Users } from "lucide-react";
+import { Phone, MessageSquare, CreditCard, Calendar, Bot, Target } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -24,22 +24,20 @@ function useCityFromPath() {
   return CITY_LABEL[slug] ?? slug.replace(/-/g, " ");
 }
 
-const ICONS = [Bot, Phone, MessageSquare, ShoppingCart, CreditCard, Calendar, Target, Users];
+const CASE_NUMBERS = [1, 2, 3, 5, 6, 7];
+const ICONS = [Bot, Phone, MessageSquare, CreditCard, Calendar, Target];
 
 const UseCasesSection = () => {
   const city = useCityFromPath();
   const cityText = city || "Colombia";
   const { t } = useLanguage();
 
-  const useCases = Array.from({ length: 8 }, (_, i) => {
-    const n = i + 1;
-    return {
-      icon: ICONS[i],
-      title: t(`usecases.case${n}.title`),
-      description: t(`usecases.case${n}.desc`),
-      features: [t(`usecases.case${n}.f1`), t(`usecases.case${n}.f2`), t(`usecases.case${n}.f3`)],
-    };
-  });
+  const useCases = CASE_NUMBERS.map((n, i) => ({
+    icon: ICONS[i],
+    title: t(`usecases.case${n}.title`),
+    description: t(`usecases.case${n}.desc`),
+    features: [t(`usecases.case${n}.f1`), t(`usecases.case${n}.f2`), t(`usecases.case${n}.f3`)],
+  }));
 
   return (
     <section id="casos-de-uso" role="region" aria-labelledby="casos-de-uso-title" className="py-20 bg-muted/30">

@@ -87,11 +87,11 @@ const Navbar: React.FC = () => {
               </NavigationMenuLink>
             </NavigationMenuItem>
 
-            {/* Servicios */}
+            {/* Casos de uso */}
             <NavigationMenuItem>
               <NavigationMenuLink asChild>
-                <a href="#casos-de-uso" className={linkBase} title={t("nav.services")}>
-                  {t("nav.services")}
+                <a href="/casos-de-uso" className={linkBase} title={t("nav.useCases")}>
+                  {t("nav.useCases")}
                 </a>
               </NavigationMenuLink>
             </NavigationMenuItem>
