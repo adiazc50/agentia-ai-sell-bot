@@ -23,6 +23,7 @@ const Renewal = lazy(() => import("@/pages/Renewal"));
 const Pricing = lazy(() => import("@/pages/Pricing"));
 const UseCases = lazy(() => import("@/pages/UseCases"));
 const Partners = lazy(() => import("@/pages/Partners"));
+const Recursos = lazy(() => import("@/pages/Recursos"));
 const TermsAndConditions = lazy(() => import("@/pages/TermsAndConditions"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const CityHub = lazy(() => import("@/pages/CityHub"));
@@ -64,6 +65,7 @@ const App = () => (
           <Route path="/terminos" element={<TermsAndConditions />} />
           <Route path="/privacidad" element={<PrivacyPolicy />} />
           {/* Content pages */}
+          <Route path="/recursos" element={<Recursos />} />
           <Route path="/nosotros" element={<Nosotros />} />
           <Route path="/plataformas/:platform" element={<PlatformPage />} />
           <Route path="/ciudades/" element={<CityHub />} />

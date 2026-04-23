@@ -105,6 +105,7 @@ const PrivacyPolicy = () => {
                 6.2. <strong className="text-foreground">Transferencia internacional:</strong> En cumplimiento del artículo 26 de la Ley 1581 de 2012, Agent IA podrá transferir datos personales a los siguientes terceros ubicados fuera de Colombia:<br /><br />
                 • <strong className="text-foreground">Meta Platforms, Inc.</strong> (Estados Unidos) — Necesaria para la integración con WhatsApp Business API<br />
                 • <strong className="text-foreground">TikTok (ByteDance Ltd.)</strong> (Singapur/Estados Unidos) — Necesaria para la integración con TikTok Business API para mensajería automatizada<br />
+                • <strong className="text-foreground">Meta Platforms, Inc.</strong> (EE.UU./USA) — Integración Facebook Messenger API<br />
                 • <strong className="text-foreground">Proveedores de infraestructura en la nube</strong> — Para almacenamiento seguro y procesamiento de datos<br />
                 • <strong className="text-foreground">Proveedores de modelos de IA</strong> — Para el funcionamiento de los algoritmos de respuesta automática<br /><br />
                 6.3. En todos los casos de transferencia internacional, Agent IA se asegurará de que los países destinatarios cuenten con niveles adecuados de protección de datos o, en su defecto, se celebrarán contratos que garanticen las condiciones mínimas previstas en la legislación colombiana.
@@ -160,7 +161,7 @@ const PrivacyPolicy = () => {
                 • Tokens de acceso OAuth para la autenticación segura<br /><br />
                 <strong className="text-foreground">10.3. Uso de los datos de TikTok:</strong><br />
                 • Procesamiento y respuesta automatizada de mensajes directos mediante el Agente de IA<br />
-                • Gestión centralizada de conversaciones de TikTok junto con otros canales (WhatsApp, Instagram)<br />
+                • Gestión centralizada de conversaciones de TikTok junto con otros canales (WhatsApp, Instagram, Messenger)<br />
                 • Análisis de interacciones para mejorar la atención al cliente<br /><br />
                 <strong className="text-foreground">10.4. Almacenamiento y retención:</strong><br />
                 • Los datos de TikTok se almacenan de forma segura en nuestros servidores con encriptación en tránsito y en reposo<br />
@@ -175,21 +176,108 @@ const PrivacyPolicy = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">11. COOKIES Y TECNOLOGÍAS DE SEGUIMIENTO</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">11. INTEGRACIÓN CON INSTAGRAM (META)</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                11.1. Agent IA integra la API de Instagram Graph de Meta Platforms para permitir a los Usuarios gestionar mensajes directos y respuestas automatizadas.<br /><br />
+                <strong className="text-foreground">11.2. Datos recopilados a través de Instagram:</strong><br />
+                • Información del perfil de Instagram Business del Usuario (nombre de usuario, ID de cuenta)<br />
+                • Mensajes directos (DMs) recibidos y enviados<br />
+                • Datos de interacción de los seguidores que se comunican con el Usuario vía DMs<br />
+                • Tokens de acceso OAuth para la autenticación segura<br />
+                • Contenido multimedia compartido en conversaciones (imágenes, videos)<br /><br />
+                <strong className="text-foreground">11.3. Uso de los datos de Instagram:</strong><br />
+                • Procesamiento y respuesta automatizada de mensajes directos mediante el Agente de IA<br />
+                • Gestión centralizada de conversaciones de Instagram junto con otros canales (WhatsApp, TikTok, Messenger)<br />
+                • Análisis de interacciones para mejorar la atención al cliente<br /><br />
+                11.4. Los datos de Instagram se almacenan con encriptación en tránsito y en reposo. Los tokens de acceso se almacenan de forma encriptada y se renuevan automáticamente. Los datos se retienen conforme a la sección 9 de esta Política.<br /><br />
+                11.5. El Usuario puede desconectar su cuenta de Instagram en cualquier momento desde la configuración de la Plataforma. Al desconectar, los tokens se eliminan inmediatamente.<br /><br />
+                11.6. Agent IA cumple con la Política de la Plataforma de Meta para Instagram y las directrices de la API de Instagram Graph. Agent IA no vende, comparte ni utiliza los datos de Instagram para fines distintos a los descritos en esta Política.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-foreground mb-3">12. INTEGRACIÓN CON FACEBOOK MESSENGER (META)</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                12.1. Agent IA integra la API de Messenger Platform de Meta para permitir a los Usuarios gestionar mensajes desde su Página de Facebook y automatizar respuestas.<br /><br />
+                <strong className="text-foreground">12.2. Datos recopilados a través de Messenger:</strong><br />
+                • Información del perfil de la Página de Facebook del Usuario (nombre de página, ID de página)<br />
+                • Mensajes recibidos y enviados a través de Messenger<br />
+                • Datos de interacción de las personas que envían mensajes a la Página<br />
+                • Tokens de acceso OAuth para la autenticación segura<br />
+                • Contenido multimedia compartido en conversaciones (imágenes, videos, archivos)<br /><br />
+                <strong className="text-foreground">12.3. Uso de los datos de Messenger:</strong><br />
+                • Procesamiento y respuesta automatizada de mensajes mediante el Agente de IA<br />
+                • Gestión centralizada de conversaciones de Messenger junto con otros canales (WhatsApp, Instagram, TikTok)<br />
+                • Análisis de interacciones para mejorar la atención al cliente<br /><br />
+                12.4. Los datos de Messenger se almacenan con encriptación en tránsito y en reposo. Los tokens de acceso se almacenan de forma encriptada y se renuevan automáticamente. Los datos se retienen conforme a la sección 9 de esta Política.<br /><br />
+                12.5. El Usuario puede desconectar su Página de Facebook de la integración de Messenger en cualquier momento desde la configuración de la Plataforma. Al desconectar, los tokens se eliminan inmediatamente.<br /><br />
+                12.6. Agent IA cumple con la Política de la Plataforma de Meta y las directrices de Messenger Platform. Agent IA no vende, comparte ni utiliza los datos de Messenger para fines distintos a los descritos en esta Política.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-foreground mb-3">13. INTEGRACIÓN CON GOOGLE</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                <strong className="text-foreground">13.1.</strong> En caso de integraciones con servicios de Google (Google Business Profile, Google Analytics, u otros), Agent IA podrá recopilar:<br />
+                • Información del perfil de Google Business del Usuario<br />
+                • Datos de interacción con clientes a través de Google Business Messages<br />
+                • Métricas y datos analíticos (cuando el Usuario autorice la integración con Google Analytics)<br />
+                • Tokens de acceso OAuth<br /><br />
+                <strong className="text-foreground">13.2. Uso de los datos de Google:</strong><br />
+                • Gestión de comunicaciones con clientes a través de los canales de Google<br />
+                • Análisis de rendimiento e interacción<br />
+                • Mejora de la atención al cliente automatizada<br /><br />
+                13.3. Los datos se almacenan con los mismos estándares de seguridad aplicados a todas las integraciones. El Usuario puede revocar el acceso en cualquier momento.<br /><br />
+                13.4. Agent IA cumple con la Política de Datos de Google para Desarrolladores y los Requisitos de Verificación de APIs de Google.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-foreground mb-3">14. INTEGRACIÓN CON WORDPRESS</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                <strong className="text-foreground">14.1.</strong> Agent IA ofrece un widget de chat inteligente para sitios WordPress. Los datos recopilados incluyen:<br />
+                • Información del visitante del sitio web que interactúa con el chat (dirección IP anonimizada, datos de navegación)<br />
+                • Contenido de las conversaciones del chat<br />
+                • Datos proporcionados voluntariamente por el visitante (nombre, email, teléfono, consultas)<br />
+                • Metadatos de la sesión de chat (fecha, hora, duración, páginas visitadas)<br /><br />
+                <strong className="text-foreground">14.2. Uso de los datos de WordPress:</strong><br />
+                • Funcionamiento del chat inteligente con IA<br />
+                • Captura de leads y datos de contacto<br />
+                • Análisis de interacciones para mejorar la experiencia del usuario<br /><br />
+                <strong className="text-foreground">14.3.</strong> El Usuario que integre el widget de chat en su sitio WordPress es Responsable del Tratamiento de los datos de los visitantes de su sitio. El Usuario debe:<br />
+                • Informar a los visitantes sobre el uso de IA en el chat<br />
+                • Obtener el consentimiento necesario según la legislación aplicable<br />
+                • Incluir la información del tratamiento en su política de privacidad<br />
+                • Cumplir con la normatividad de cookies aplicable<br /><br />
+                14.4. Agent IA actúa como Encargado del Tratamiento para los datos recopilados a través del widget de WordPress.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-foreground mb-3">15. EVALUACIÓN DE IMPACTO Y REGISTROS</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                15.1. Agent IA mantiene un registro actualizado de las bases de datos conforme a la Circular Externa 002 de 2015 de la Superintendencia de Industria y Comercio y el Registro Nacional de Bases de Datos (RNBD).<br /><br />
+                15.2. Agent IA realiza evaluaciones periódicas de impacto en la protección de datos para las actividades de tratamiento que impliquen riesgos significativos para los derechos y libertades de los titulares.<br /><br />
+                15.3. Agent IA implementa el principio de responsabilidad demostrada (accountability) conforme al Decreto 1377 de 2013, manteniendo evidencia de las medidas adoptadas para garantizar el cumplimiento de la normatividad de protección de datos.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-foreground mb-3">16. COOKIES Y TECNOLOGÍAS DE SEGUIMIENTO</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 La Plataforma utiliza cookies y tecnologías similares para mejorar la experiencia del Usuario. Para más información sobre el uso de cookies, tipos y configuración, el Usuario puede consultar la sección correspondiente en la Plataforma. El Usuario puede configurar su navegador para rechazar cookies, aunque esto puede afectar la funcionalidad del servicio.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">12. TRATAMIENTO DE DATOS DE MENORES</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">17. TRATAMIENTO DE DATOS DE MENORES</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Los Servicios de Agent IA están dirigidos exclusivamente a personas mayores de edad. Agent IA no recopila intencionalmente datos personales de menores de edad. Si Agent IA detecta que se han recopilado datos de un menor sin la autorización del representante legal, procederá a eliminarlos de inmediato conforme al artículo 7 de la Ley 1581 de 2012.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">13. INCIDENTES DE SEGURIDAD</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">18. INCIDENTES DE SEGURIDAD</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 En caso de un incidente de seguridad que comprometa datos personales, Agent IA:<br /><br />
                 a) Notificará a la Superintendencia de Industria y Comercio (SIC) dentro de los quince (15) días hábiles siguientes al conocimiento del incidente.<br />
@@ -199,14 +287,14 @@ const PrivacyPolicy = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">14. MODIFICACIONES A LA POLÍTICA</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">19. MODIFICACIONES A LA POLÍTICA</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Agent IA se reserva el derecho de modificar la presente Política en cualquier momento. Las modificaciones serán notificadas al Usuario mediante correo electrónico o aviso en la Plataforma. El uso continuado de los Servicios tras la notificación de los cambios constituirá la aceptación de la Política modificada.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">15. AUTORIDAD DE SUPERVISIÓN</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">20. AUTORIDAD DE SUPERVISIÓN</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 La autoridad competente para la vigilancia del cumplimiento de la normatividad de protección de datos personales en Colombia es la <strong className="text-foreground">Superintendencia de Industria y Comercio (SIC)</strong>.<br /><br />
                 <strong className="text-foreground">Dirección:</strong> Carrera 13 No. 27-00, Bogotá D.C., Colombia<br />
@@ -216,7 +304,7 @@ const PrivacyPolicy = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-3">16. CONTACTO</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">21. CONTACTO</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Para consultas, reclamos o ejercicio de derechos relacionados con el tratamiento de datos personales:<br /><br />
                 <strong className="text-foreground">Oficial de Protección de Datos:</strong> AGENT IA SAS<br />

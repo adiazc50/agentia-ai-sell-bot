@@ -1,7 +1,7 @@
 {
-  "name": "SoyAgentia - Agentes de IA Medellín",
+  "name": "SoyAgentia - Agentes de IA para WhatsApp, Instagram, Messenger, TikTok y Web",
   "short_name": "SoyAgentia",
-  "description": "Líder en Agentes de IA para automatización empresarial en Medellín, Colombia",
+  "description": "Agentes de IA para WhatsApp, Instagram, Messenger, TikTok y página web. Automatiza ventas, atención al cliente y soporte 24/7 con inteligencia artificial.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",

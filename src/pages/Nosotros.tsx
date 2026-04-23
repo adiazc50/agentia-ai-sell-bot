@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useNavigate } from "react-router-dom";
 
 const AGENTIA_URL = "https://www.agentia.com.co";
 
@@ -13,6 +14,7 @@ const VALUE_ICONS = [Brain, Users, Target, Globe];
 
 const Nosotros: React.FC = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   const values = VALUE_ICONS.map((icon, i) => ({
     icon,
@@ -224,12 +226,15 @@ const Nosotros: React.FC = () => {
                     <Button
                       size="lg"
                       className="relative bg-gradient-to-r from-primary to-accent text-primary-foreground text-lg px-8 py-6"
-                      asChild
+                      onClick={() => {
+                        navigate("/");
+                        setTimeout(() => {
+                          document.getElementById("planes")?.scrollIntoView({ behavior: "smooth" });
+                        }, 500);
+                      }}
                     >
-                      <a href={AGENTIA_URL} target="_blank" rel="noopener noreferrer">
                         {t("about.ctaButton")}
                         <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={20} />
-                      </a>
                     </Button>
                   </motion.div>
                   <Button

@@ -288,7 +288,7 @@ const PartnerRegistrationForm = () => {
           </div>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">{t('partner.formTitle')}</h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            {t('partner.formSubtitle')} <strong className="text-foreground">$5.000.000 COP</strong>{currency === 'USD' ? ` (${t('partner.usdEquivalent')} ${formatPrice(5000000)})` : ''}.
+            {t('partner.formSubtitle')} <strong className="text-foreground">{formatPrice(5000000)}</strong> (≈ $5.000.000 COP).
             {' '}{t('partner.formRefundNote')}
           </p>
         </div>
@@ -500,8 +500,8 @@ const PartnerRegistrationForm = () => {
                     <p className="text-xs text-muted-foreground">{t('partner.paymentRefundable')}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-primary">$5.000.000 <span className="text-sm font-normal text-muted-foreground">COP</span></p>
-                    {currency === 'USD' && <p className="text-xs text-muted-foreground">{t('partner.usdEquivalent')} {formatPrice(5000000)}</p>}
+                    <p className="text-2xl font-bold text-primary">{formatPrice(5000000)}</p>
+                    <p className="text-xs text-muted-foreground">≈ $5.000.000 COP</p>
                   </div>
                 </CardContent>
               </Card>
@@ -516,7 +516,7 @@ const PartnerRegistrationForm = () => {
                 {isLoading ? (
                   <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> {t('partner.processing')}</>
                 ) : (
-                  <><Handshake className="w-5 h-5 mr-2" /> {t('partner.registerAndPay')} $5.000.000 COP</>
+                  <><Handshake className="w-5 h-5 mr-2" /> {t('partner.registerAndPay')} {formatPrice(5000000)}</>
                 )}
               </Button>
             </form>
@@ -554,7 +554,7 @@ const PartnerRegistrationForm = () => {
             <div className="pt-2 border-t border-border">
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Monto a pagar:</span>
-                <span className="text-lg font-bold text-primary">$5.000.000 COP</span>
+                <span className="text-lg font-bold text-primary">{formatPrice(5000000)} <span className="text-xs font-normal text-muted-foreground">(≈ $5.000.000 COP)</span></span>
               </div>
             </div>
           </div>

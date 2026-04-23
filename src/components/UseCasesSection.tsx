@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Phone, MessageSquare, CreditCard, Calendar, Bot, Target } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { Phone, MessageSquare, CreditCard, Calendar, Bot, Target, Rocket } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const CITY_LABEL: Record<string, string> = {
@@ -31,6 +31,19 @@ const UseCasesSection = () => {
   const city = useCityFromPath();
   const cityText = city || "Colombia";
   const { t } = useLanguage();
+  const navigate = useNavigate();
+
+  const goToPlanes = () => {
+    const el = document.getElementById("planes");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    } else {
+      navigate("/");
+      setTimeout(() => {
+        document.getElementById("planes")?.scrollIntoView({ behavior: "smooth" });
+      }, 500);
+    }
+  };
 
   const useCases = CASE_NUMBERS.map((n, i) => ({
     icon: ICONS[i],
@@ -85,6 +98,26 @@ const UseCasesSection = () => {
               </Card>
             );
           })}
+        </div>
+
+        {/* CTA to pricing */}
+        <div className="mt-16 text-center">
+          <div className="inline-flex flex-col items-center gap-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 rounded-2xl px-10 py-8 shadow-lg">
+            <Rocket className="w-8 h-8 text-emerald-500" />
+            <h3 className="text-2xl font-bold text-slate-900">
+              {t("usecases.ctaTitle") !== "usecases.ctaTitle" ? t("usecases.ctaTitle") : "¿Listo para automatizar tu negocio?"}
+            </h3>
+            <p className="text-slate-500 max-w-md">
+              {t("usecases.ctaSubtitle") !== "usecases.ctaSubtitle" ? t("usecases.ctaSubtitle") : "Elige el plan que mejor se adapte a tus necesidades y comienza hoy mismo."}
+            </p>
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-bold px-10 py-3 text-lg rounded-full shadow-lg shadow-emerald-500/25 transition-all duration-300 hover:shadow-emerald-500/40 hover:scale-105"
+              onClick={goToPlanes}
+            >
+              {t("usecases.ctaButton") !== "usecases.ctaButton" ? t("usecases.ctaButton") : "Ver planes y precios"}
+            </Button>
+          </div>
         </div>
       </div>
     </section>

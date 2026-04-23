@@ -18,6 +18,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import PartnerRegistrationForm from "@/components/PartnerRegistrationForm";
+import PartnerContractDownload from "@/components/PartnerContractDownload";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 
@@ -32,17 +33,20 @@ const Partners = () => {
   const formRef = useRef<HTMLDivElement>(null);
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: "smooth" });
   const { t } = useLanguage();
-  const { formatPrice, currency } = useCurrency();
+  const { exchangeRate } = useCurrency();
 
   const formatCOP = (amount: number) => {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
   };
 
-  const showUSD = (amountCOP: number) => {
-    if (currency === 'USD') {
-      return ` (${t('partner.usdEquivalent')} ${formatPrice(amountCOP)})`;
-    }
-    return '';
+  const formatUSD = (amountCOP: number) => {
+    const rate = exchangeRate?.rate ?? 4200;
+    const usd = Math.ceil((amountCOP / rate) * 100) / 100;
+    return `$${usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+  };
+
+  const showCOP = (amountCOP: number) => {
+    return ` (≈ ${formatCOP(amountCOP)} COP)`;
   };
 
   const levels = [
@@ -55,8 +59,8 @@ const Partners = () => {
       iconColor: "text-emerald-600",
       bgGradient: "from-emerald-500/10 to-emerald-600/5",
       description: t('partner.readyDesc'),
-      requirement: `${t('partner.readyReq')}${showUSD(5000000)}`,
-      conditions: [t('partner.readyCond1'), `${t('partner.readyCond2')}${showUSD(5000000)}`],
+      requirement: `${t('partner.readyReq')} ${formatUSD(5000000)}${showCOP(5000000)}`,
+      conditions: [t('partner.readyCond1'), `${t('partner.readyCond2')} ${formatUSD(5000000)}${showCOP(5000000)}`],
       benefits: [t('partner.readyBen1'), t('partner.readyBen2'), t('partner.readyBen3'), t('partner.readyBen4')],
       training: t('partner.readyTraining'),
     },
@@ -69,8 +73,8 @@ const Partners = () => {
       iconColor: "text-slate-500",
       bgGradient: "from-slate-400/10 to-slate-500/5",
       description: t('partner.silverDesc'),
-      requirement: `${t('partner.silverReq')}${showUSD(15000000)}`,
-      conditions: [`${t('partner.silverCond1')}${showUSD(15000000)}`],
+      requirement: `${t('partner.silverReq')} > ${formatUSD(15000000)}${showCOP(15000000)}`,
+      conditions: [`${t('partner.silverCond1')} ${formatUSD(15000000)}${showCOP(15000000)}`],
       benefits: [t('partner.silverBen1'), t('partner.silverBen2'), t('partner.silverBen3'), t('partner.silverBen4'), t('partner.silverBen5')],
       training: t('partner.silverTraining'),
     },
@@ -83,8 +87,8 @@ const Partners = () => {
       iconColor: "text-amber-500",
       bgGradient: "from-amber-400/10 to-amber-500/5",
       description: t('partner.goldDesc'),
-      requirement: `${t('partner.goldReq')}${showUSD(50000000)}`,
-      conditions: [`${t('partner.goldCond1')}${showUSD(50000000)}`],
+      requirement: `${t('partner.goldReq')} > ${formatUSD(50000000)}${showCOP(50000000)}`,
+      conditions: [`${t('partner.goldCond1')} ${formatUSD(50000000)}${showCOP(50000000)}`],
       benefits: [t('partner.goldBen1'), t('partner.goldBen2'), t('partner.goldBen3'), t('partner.goldBen4'), t('partner.goldBen5')],
       training: t('partner.goldTraining'),
       featured: true,
@@ -204,7 +208,7 @@ const Partners = () => {
                   {[1,2,3,4].map(i => (
                     <div key={i} className="flex items-start gap-3">
                       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">{i}</span>
-                      <span className="text-foreground">{t(`partner.req${i}`)}{i === 4 ? showUSD(5000000) : ''}</span>
+                      <span className="text-foreground">{t(`partner.req${i}`)}{i === 4 ? ` ${formatUSD(5000000)}${showCOP(5000000)}` : ''}</span>
                     </div>
                   ))}
                   <p className="text-muted-foreground text-sm pt-2 border-t border-border/50">{t('partner.reqNote')}</p>
@@ -216,11 +220,9 @@ const Partners = () => {
                 <CardContent className="p-6">
                   <h3 className="text-xl font-bold text-foreground mb-1">{t('partner.investTitle')}</h3>
                   <p className="text-3xl font-extrabold text-primary mb-1">
-                    {formatCOP(5000000)} <span className="text-base font-medium text-muted-foreground">COP</span>
+                    {formatUSD(5000000)}
                   </p>
-                  {currency === 'USD' && (
-                    <p className="text-sm text-muted-foreground mb-5">{t('partner.usdEquivalent')} {formatPrice(5000000)}</p>
-                  )}
+                  <p className="text-sm text-muted-foreground mb-5">≈ {formatCOP(5000000)} COP</p>
 
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="p-5 rounded-xl bg-background border border-border/50">
@@ -229,8 +231,8 @@ const Partners = () => {
                           <Rocket className="w-5 h-5 text-emerald-600" />
                         </div>
                         <div>
-                          <p className="text-lg font-bold text-foreground">{formatCOP(3000000)}</p>
-                          <p className="text-xs text-muted-foreground">COP{currency === 'USD' ? ` (${t('partner.usdEquivalent')} ${formatPrice(3000000)})` : ''}</p>
+                          <p className="text-lg font-bold text-foreground">{formatUSD(3000000)}</p>
+                          <p className="text-xs text-muted-foreground">≈ {formatCOP(3000000)} COP</p>
                         </div>
                       </div>
                       <h4 className="font-semibold text-foreground mb-2">{t('partner.investLicenses')}</h4>
@@ -243,8 +245,8 @@ const Partners = () => {
                           <GraduationCap className="w-5 h-5 text-amber-600" />
                         </div>
                         <div>
-                          <p className="text-lg font-bold text-foreground">{formatCOP(2000000)}</p>
-                          <p className="text-xs text-muted-foreground">COP{currency === 'USD' ? ` (${t('partner.usdEquivalent')} ${formatPrice(2000000)})` : ''}</p>
+                          <p className="text-lg font-bold text-foreground">{formatUSD(2000000)}</p>
+                          <p className="text-xs text-muted-foreground">≈ {formatCOP(2000000)} COP</p>
                         </div>
                       </div>
                       <h4 className="font-semibold text-foreground mb-2">{t('partner.investActivation')}</h4>
@@ -375,8 +377,8 @@ const Partners = () => {
                   </div>
                   {[
                     { level: "Ready", billing: t('partner.tableFromEntry'), margin: "15%" },
-                    { level: "Silver", billing: `> $15M COP/mes${showUSD(15000000)}`, margin: "20%" },
-                    { level: "Gold", billing: `> $50M COP/mes${showUSD(50000000)}`, margin: "25%" },
+                    { level: "Silver", billing: `> ${formatUSD(15000000)}/mes${showCOP(15000000)}`, margin: "20%" },
+                    { level: "Gold", billing: `> ${formatUSD(50000000)}/mes${showCOP(50000000)}`, margin: "25%" },
                   ].map((row, i) => (
                     <div key={i} className={`grid grid-cols-3 gap-0 text-center ${i < 2 ? 'border-b border-border' : ''}`}>
                       <div className="p-4 text-sm font-medium text-foreground">{row.level}</div>
@@ -685,6 +687,9 @@ const Partners = () => {
             <PartnerRegistrationForm />
           </div>
         </section>
+
+        {/* Downloadable Contract */}
+        <PartnerContractDownload />
       </main>
       <Footer />
     </div>
