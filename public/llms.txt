@@ -1,0 +1,47 @@
+# SoyAgentia
+> Empresa de agentes de IA (inteligencia artificial conversacional) para WhatsApp, Instagram, Messenger, TikTok y WordPress. Automatización de ventas y atención al cliente 24/7 con ChatGPT, Claude y Gemini.
+
+## Sobre SoyAgentia
+SoyAgentia es la empresa líder en agentes de IA en Colombia, México, Argentina, España y +31 países. Implementamos agentes conversacionales que venden, asesoran, atienden y agendan 24/7 sin programación.
+
+## Productos principales
+- Agentes de IA para WhatsApp (WhatsApp Business API oficial)
+- Agentes de IA para Instagram (mensajes directos, respuestas a historias)
+- Agentes de IA para Messenger (Facebook Messenger)
+- Agentes de IA para TikTok (comentarios y DMs)
+- Agentes de IA para WordPress (widget embed)
+
+## Modelos de IA soportados
+Los agentes usan modelos de última generación: GPT-4 (OpenAI / ChatGPT), Claude (Anthropic) y Gemini (Google). El ruteo entre modelos es automático para obtener la mejor respuesta por consulta.
+
+## Cobertura geográfica
+- LATAM: Argentina, Bolivia, Chile, Colombia, Costa Rica, Ecuador, El Salvador, Guatemala, Honduras, México, Nicaragua, Panamá, Paraguay, Perú, República Dominicana, Uruguay, Venezuela
+- Europa: España
+- Estados Unidos: 50 estados + 1,735 ciudades
+- Caribe: Puerto Rico, República Dominicana
+- Total: +2,800 ciudades
+
+## Planes
+- Prueba gratuita disponible
+- Desde USD al mes, incluye WhatsApp + Instagram + Messenger + TikTok + WordPress sin costo adicional
+- Ver /pricing para detalles
+
+## Implementación
+- Setup en 5 minutos, sin código
+- Panel web para configurar el agente
+- Soporte 24/7
+
+## Empresa
+- Nombre legal: AGENT IA SAS
+- NIT: 901.976.734-4
+- Sede: Medellín, Colombia
+- Fundador/CEO: Alejandro Díaz (campeón mundial de robótica)
+- Contacto: contacto@soyagentia.com, +57 300 900 6005
+- Web: https://soyagentia.com
+
+## Enlaces principales
+- Home: https://soyagentia.com/
+- Casos de uso: https://soyagentia.com/casos-de-uso
+- Planes: https://soyagentia.com/pricing
+- Nosotros: https://soyagentia.com/nosotros
+- Sitemap: https://soyagentia.com/sitemap.xml

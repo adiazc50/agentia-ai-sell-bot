@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "gen:cities": "node scripts/generate-city-pages.cjs",
-    "prebuild": "node scripts/generate-city-pages.cjs",
+    "gen:cities": "node scripts/generate-city-pages.cjs && tsx scripts/generate-all-pages.mts",
+    "prebuild": "node scripts/generate-city-pages.cjs && tsx scripts/generate-all-pages.mts",
     "build": "vite build",
-    "postbuild": "node scripts/generate-city-pages.cjs",
+    "postbuild": "node scripts/generate-city-pages.cjs && tsx scripts/generate-all-pages.mts",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -80,6 +80,7 @@
     "lovable-tagger": "^1.1.7",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.11",
+    "tsx": "^4.21.0",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1"
