@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Bot, LogOut, Users, CreditCard, Shield, Search, Building2, User, CalendarClock, CheckCircle, AlertTriangle, XCircle, Eye, Calendar, Edit2, X, Save, Plus, HelpCircle, MessageSquare, DollarSign, TrendingUp, RefreshCw, BarChart3, Play, Loader2, Wallet } from "lucide-react";
+import { Bot, LogOut, Users, CreditCard, Shield, Search, Building2, User, CalendarClock, CheckCircle, AlertTriangle, XCircle, Eye, Calendar, Edit2, X, Save, Plus, HelpCircle, MessageSquare, DollarSign, TrendingUp, RefreshCw, BarChart3, Play, Loader2, Wallet, Ticket } from "lucide-react";
 import FinancialDashboard from "@/components/FinancialDashboard";
+import CouponsAdminTab from "@/components/CouponsAdminTab";
 import PaymentMethodSelector from "@/components/PaymentMethodSelector";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { Label } from "@/components/ui/label";
@@ -82,6 +83,9 @@ interface Transaction {
   status: string;
   type?: string;
   created_at: string;
+  id_coupon?: number | null;
+  discount_amount?: number | null;
+  coupon_code?: string | null;
 }
 
 interface SupportTicket {
@@ -1208,6 +1212,10 @@ const Admin = () => {
                 <DollarSign className="w-4 h-4 mr-2" />
                 Vendedores
               </TabsTrigger>
+              <TabsTrigger value="coupons" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <Ticket className="w-4 h-4 mr-2" />
+                Cupones
+              </TabsTrigger>
               <TabsTrigger value="financial" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Resumen Financiero
@@ -2239,6 +2247,11 @@ const Admin = () => {
                   )}
                 </div>
               </div>
+            </TabsContent>
+
+            {/* Coupons Tab */}
+            <TabsContent value="coupons">
+              <CouponsAdminTab profiles={profiles} />
             </TabsContent>
 
             {/* Financial Dashboard Tab */}

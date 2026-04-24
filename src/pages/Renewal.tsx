@@ -84,6 +84,16 @@ const Renewal = () => {
   const [pendingPayment, setPendingPayment] = useState<{ planName: string; amount: number } | null>(null);
   const [billingPeriod, setBillingPeriod] = useState<"mensual" | "semestral" | "anual">("mensual");
   const [hasPurchasedPlanTest, setHasPurchasedPlanTest] = useState(false);
+
+  // Coupon state (applied in the confirm-payment modal)
+  const [couponInput, setCouponInput] = useState("");
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountAmount: number;
+    finalAmount: number;
+    originalAmount: number;
+  } | null>(null);
   const { toast } = useToast();
   const { currency, formatPrice, convertToSelectedCurrency, exchangeRate } = useCurrency();
 
@@ -176,7 +186,43 @@ const Renewal = () => {
 
   const initiatePayment = (planName: string, amount: number) => {
     setPendingPayment({ planName, amount });
+    setCouponInput("");
+    setAppliedCoupon(null);
     setConfirmPaymentModal(true);
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim() || !pendingPayment) return;
+    setValidatingCoupon(true);
+    try {
+      const res: any = await api.coupons.validatePublic(
+        document.trim(),
+        couponInput.trim().toUpperCase(),
+        pendingPayment.amount,
+        "COP",
+      );
+      setAppliedCoupon({
+        code: res.code,
+        discountAmount: Number(res.discountAmount),
+        finalAmount: Number(res.finalAmount),
+        originalAmount: Number(res.originalAmount),
+      });
+      toast({
+        title: "Cupón aplicado",
+        description: `Descuento de $${Number(res.discountAmount).toLocaleString("es-CO")} COP`,
+      });
+    } catch (error: any) {
+      const message = error?.message || "No se pudo aplicar el cupón";
+      toast({ title: "Cupón inválido", description: message, variant: "destructive" });
+      setAppliedCoupon(null);
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
   };
 
   const handleConfirmPayment = async () => {
@@ -188,10 +234,50 @@ const Renewal = () => {
     try {
       const { planName, amount } = pendingPayment;
 
-      // Always charge in COP, but show user their selected currency
-      const priceInCents = amount * 100;
+      // If a coupon is applied, charge the final (discounted) amount
+      const effectiveAmount = appliedCoupon ? appliedCoupon.finalAmount : amount;
       const reference = `renewal-${planName.toLowerCase()}-${Date.now()}`;
       const currencyCode = "COP";
+
+      // 100% coupon path: skip Wompi, activate via public redeem-free endpoint
+      if (appliedCoupon && effectiveAmount === 0) {
+        try {
+          await api.payments.redeemFreeCouponPublic({
+            document: document.trim(),
+            couponCode: appliedCoupon.code,
+            planName,
+            idPlan: null,
+            aiResponsesIncluded: 0,
+            type: "renewal",
+            currency: currencyCode,
+            planPriceAmount: amount,
+            reference,
+          });
+          toast({
+            title: "¡Plan activado!",
+            description: `Tu plan ${planName} se activó gratis con el cupón ${appliedCoupon.code}.`,
+          });
+          setSearched(false);
+          setPlanInfo(null);
+          setDocument("");
+          setShowAllPlans(false);
+          setSelectedPlan(null);
+          setPaymentLoading(false);
+          setPendingPayment(null);
+          return;
+        } catch (err: any) {
+          toast({
+            title: "No se pudo activar el cupón",
+            description: err?.message || "Intenta de nuevo o usa otro método.",
+            variant: "destructive",
+          });
+          setPaymentLoading(false);
+          setPendingPayment(null);
+          return;
+        }
+      }
+
+      const priceInCents = Math.round(effectiveAmount * 100);
 
       console.log("Requesting signature for renewal:", { reference, amountInCents: priceInCents, currency: currencyCode });
 
@@ -203,15 +289,28 @@ const Renewal = () => {
 
       console.log("Signature received:", signatureData);
 
+      // Creates pending TransactionLog with coupon (if applied); the webhook
+      // will later consume it once Wompi approves.
       try {
         await api.payments.renewalPayment({
           document: document.trim(),
           reference,
           planName,
           amount,
+          currency: currencyCode,
+          couponCode: appliedCoupon?.code,
         });
-      } catch (txError) {
+      } catch (txError: any) {
         console.error("Error creating transaction:", txError);
+        // If the failure came from an invalid coupon at the last second, abort
+        // the checkout rather than charging a wrong amount.
+        if (appliedCoupon) {
+          const msg = txError?.message || "El cupón ya no es válido. Intenta de nuevo sin cupón.";
+          toast({ title: "No se pudo aplicar el cupón", description: msg, variant: "destructive" });
+          setPaymentLoading(false);
+          setPendingPayment(null);
+          return;
+        }
       }
 
       const checkout = new (window as any).WidgetCheckout({
@@ -669,8 +768,27 @@ const Renewal = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Monto en COP:</span>
-                  <span className="font-medium">${pendingPayment.amount.toLocaleString("es-CO")} COP</span>
+                  <span className={appliedCoupon ? "line-through text-muted-foreground" : "font-medium"}>
+                    ${pendingPayment.amount.toLocaleString("es-CO")} COP
+                  </span>
                 </div>
+
+                {appliedCoupon && (
+                  <>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Descuento ({appliedCoupon.code}):</span>
+                      <span className="text-primary font-medium">
+                        -${appliedCoupon.discountAmount.toLocaleString("es-CO")} COP
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-border pt-2">
+                      <span className="font-semibold">Total a pagar:</span>
+                      <span className="font-bold text-lg text-primary">
+                        ${appliedCoupon.finalAmount.toLocaleString("es-CO")} COP
+                      </span>
+                    </div>
+                  </>
+                )}
 
                 {currency === 'USD' && exchangeRate && (
                   <>
@@ -695,6 +813,45 @@ const Renewal = () => {
                       <span>El cobro se realizará en COP. El monto en USD es solo referencial.</span>
                     </div>
                   </>
+                )}
+              </div>
+
+              {/* Coupon input */}
+              <div className="border border-border rounded-lg p-3 space-y-2">
+                <Label className="flex items-center gap-2 text-sm">
+                  <Gift className="w-4 h-4 text-primary" />
+                  ¿Tienes un código de cupón?
+                </Label>
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between bg-primary/10 border border-primary/30 rounded-md px-3 py-2">
+                    <div>
+                      <div className="font-mono text-sm font-semibold">{appliedCoupon.code}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Aplicado: -${appliedCoupon.discountAmount.toLocaleString("es-CO")} COP
+                      </div>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={removeCoupon} className="text-destructive hover:text-destructive">
+                      Quitar
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Ingresa tu código"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleApplyCoupon(); } }}
+                      className="uppercase"
+                      disabled={validatingCoupon}
+                    />
+                    <Button
+                      onClick={handleApplyCoupon}
+                      disabled={!couponInput.trim() || validatingCoupon}
+                      variant="outline"
+                    >
+                      {validatingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : "Aplicar"}
+                    </Button>
+                  </div>
                 )}
               </div>
 

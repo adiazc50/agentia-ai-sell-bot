@@ -9,10 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Bot, CreditCard, LogOut, User, Building2, Calendar, 
+import {
+  Bot, CreditCard, LogOut, User, Building2, Calendar,
   CheckCircle, XCircle, Edit, HelpCircle, Plus, MessageSquare, Info, RefreshCw,
-  Home, Tag
+  Home, Tag, Ticket
 } from "lucide-react";
 import { api, isAuthenticated, getUser, logout as apiLogout } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +24,7 @@ import DashboardShowcase from "@/components/DashboardShowcase";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import CountrySelect from "@/components/CountrySelect";
 import InvoicesTab from "@/components/InvoicesTab";
+import MyCouponsTab from "@/components/MyCouponsTab";
 
 /** Valida dígito de verificación de NIT colombiano (algoritmo DIAN) */
 function validateNitDv(nit: string): { valid: boolean; error?: string } {
@@ -100,6 +101,10 @@ interface Transaction {
   payment_method: string | null;
   transaction_date: string | null;
   id_company: number;
+  type?: string;
+  id_coupon?: number | null;
+  discount_amount?: number | null;
+  coupon_code?: string | null;
 }
 
 interface SupportTicket {
@@ -220,6 +225,17 @@ const Dashboard = () => {
   const [pendingPaymentUSD, setPendingPaymentUSD] = useState(0);
   const [triggerWompiPayment, setTriggerWompiPayment] = useState(false);
   const [triggerPayPalPayment, setTriggerPayPalPayment] = useState(false);
+
+  // Coupon state for the Renew/Change plan modal
+  const [couponInput, setCouponInput] = useState("");
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountAmount: number;
+    finalAmount: number;
+    originalAmount: number;
+  } | null>(null);
+
   const { currency, formatPrice, convertToSelectedCurrency, exchangeRate } = useCurrency();
   
   // State for month filter
@@ -264,6 +280,14 @@ const Dashboard = () => {
       handleConfirmRenewSubscription();
     }
   }, [triggerWompiPayment, pendingPaymentAmount]);
+
+  // Reset any applied coupon when the amount-shaping inputs change, so the
+  // user doesn't see a stale discount mapped to a different amount.
+  // Also reset when switching to PayPal (coupons are Wompi-only for now).
+  useEffect(() => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+  }, [renewModal, selectedPlan.package, selectedPlan.plan, wantUpgrade, upgradeWhen, paymentMethod]);
 
   // Trigger PayPal payment after state has been updated
   useEffect(() => {
@@ -540,37 +564,73 @@ const Dashboard = () => {
     return new Date(sorted[0].created_at);
   }, [transactions]);
 
+  // Subscription status: months paid, paid-through date, last coupon usage, etc.
+  const subscriptionStatus = useMemo(() => {
+    const entryDateStr = profile?.company?.entryDate;
+    if (!entryDateStr) return null;
+    const entryDate = new Date(entryDateStr);
+
+    // Match the admin's logic: count APPROVED non-upgrade transactions
+    const approvedTxs = transactions.filter(tx => tx.status === "APPROVED" && tx.type !== "upgrade");
+    const totalPayments = approvedTxs.length;
+    if (totalPayments === 0) return { entryDate, totalPayments: 0, paidThrough: null as Date | null, daysLeft: 0, status: "inactive" as "paid" | "expiring" | "overdue" | "inactive", lastCouponTx: null as any };
+
+    // Each approved payment extends coverage by 1 month from entryDate
+    const paidThrough = new Date(entryDate);
+    paidThrough.setMonth(paidThrough.getMonth() + totalPayments);
+
+    const now = new Date();
+    const daysLeft = Math.ceil((paidThrough.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    let status: "paid" | "expiring" | "overdue" | "inactive";
+    if (daysLeft < 0) status = "overdue";
+    else if (daysLeft <= 7) status = "expiring";
+    else status = "paid";
+
+    // Most recent transaction that used a coupon
+    const lastCouponTx = [...approvedTxs]
+      .filter((tx: any) => tx.id_coupon)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] || null;
+
+    return { entryDate, totalPayments, paidThrough, daysLeft, status, lastCouponTx };
+  }, [profile, transactions]);
+
   // Monthly payment record for selected year (12 months)
   const monthlyPayments = useMemo(() => {
     if (!firstTransactionDate) return [];
-    
+
     const months = [];
-    
+    const paidThrough = subscriptionStatus?.paidThrough || null;
+
     for (let i = 0; i < 12; i++) {
       const monthDate = new Date(selectedYear, 11 - i, 1);
       const monthStart = startOfMonth(monthDate);
       const monthEnd = endOfMonth(monthDate);
-      
-      // Only show months from the first transaction onward and not in the future
-      if (monthStart < startOfMonth(firstTransactionDate) || monthStart > startOfMonth(new Date())) continue;
-      
+
+      // Show months from the first transaction up to the paid-through month
+      // (so prepaid future months are visible too)
+      const lastVisibleEnd = paidThrough && paidThrough > new Date() ? paidThrough : new Date();
+      if (monthStart < startOfMonth(firstTransactionDate) || monthStart > startOfMonth(lastVisibleEnd)) continue;
+
       const monthTransactions = transactions.filter(tx => {
         const txDate = new Date(tx.created_at);
         return isWithinInterval(txDate, { start: monthStart, end: monthEnd });
       });
-      
+
       const hasPayment = monthTransactions.some(tx => tx.status === "APPROVED");
-      
+      // Covered = within paid-through window even if no transaction landed in this month
+      const isCovered = !!paidThrough && monthStart <= paidThrough;
+
       months.push({
         date: monthDate,
         month: monthDate.getMonth(),
         year: monthDate.getFullYear(),
         hasPayment,
+        isCovered,
         transactionCount: monthTransactions.length,
         approvedCount: monthTransactions.filter(tx => tx.status === "APPROVED").length
       });
     }
-    
+
     return months.reverse();
   }, [transactions, selectedYear, firstTransactionDate]);
 
@@ -891,6 +951,74 @@ const Dashboard = () => {
     }
   };
 
+  // Computes the current total COP amount that would be charged, based on the
+  // current plan selection state. Mirrors the logic used inside the modal IIFE
+  // and in initiateRenewSubscription so the coupon validator works with the
+  // same number Wompi will charge.
+  const computeCurrentCOPAmount = (): number => {
+    const selectedDbPlan = dbPlans.find(p => p.slug === selectedPlan.package);
+    if (!selectedDbPlan) return 0;
+
+    const selectedPlanPrice = Number(selectedDbPlan.priceUSD);
+    const currentPlanId = profile?.company?.currentPlan || null;
+    const currentDbPlan = currentPlanId ? dbPlans.find(p => p.id === currentPlanId) : null;
+    const currentPlanPrice = currentDbPlan ? Number(currentDbPlan.priceUSD) : 0;
+    const isUpgradeNow = wantUpgrade && currentDbPlan && selectedPlanPrice > currentPlanPrice && upgradeWhen === 'now';
+
+    const trm = exchangeRate?.rate ?? 4200;
+    const isFixedCOP = !!selectedDbPlan.fixedPriceCOP;
+
+    let chargeUSD = selectedPlanPrice;
+    if (isUpgradeNow) chargeUSD = selectedPlanPrice - currentPlanPrice;
+
+    const discountMap: Record<string, number> = { mensual: 0, semestral: 0.10, anual: 0.15 };
+    const monthsMap: Record<string, number> = { mensual: 1, semestral: 6, anual: 12 };
+    const discount = isUpgradeNow ? 0 : (discountMap[selectedPlan.plan] || 0);
+    const months = isUpgradeNow ? 1 : (monthsMap[selectedPlan.plan] || 1);
+
+    const monthlyPriceCOP = isFixedCOP ? selectedDbPlan.fixedPriceCOP : Math.round(chargeUSD * trm);
+    const discountedMonthly = discount > 0 ? Math.round(monthlyPriceCOP * (1 - discount)) : monthlyPriceCOP;
+    return discountedMonthly * months;
+  };
+
+  const handleApplyCouponRenew = async () => {
+    if (!couponInput.trim()) return;
+    const copAmount = computeCurrentCOPAmount();
+    if (!copAmount || copAmount <= 0) {
+      toast({ title: "Selecciona un plan primero", variant: "destructive" });
+      return;
+    }
+    setValidatingCoupon(true);
+    try {
+      const res: any = await api.coupons.validate(
+        couponInput.trim().toUpperCase(),
+        copAmount,
+        "COP",
+      );
+      setAppliedCoupon({
+        code: res.code,
+        discountAmount: Number(res.discountAmount),
+        finalAmount: Number(res.finalAmount),
+        originalAmount: Number(res.originalAmount),
+      });
+      toast({
+        title: "Cupón aplicado",
+        description: `Descuento de $${Number(res.discountAmount).toLocaleString("es-CO")} COP`,
+      });
+    } catch (err: any) {
+      const msg = err?.message || "No se pudo aplicar el cupón";
+      toast({ title: "Cupón inválido", description: msg, variant: "destructive" });
+      setAppliedCoupon(null);
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const removeAppliedCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+  };
+
   const initiateRenewSubscription = async () => {
     // Validar datos de facturación antes de cobrar
     try {
@@ -965,8 +1093,48 @@ const Dashboard = () => {
 
     try {
       const reference = `renewal-${selectedPlan.package}-${selectedPlan.plan}-${Date.now()}`;
-      const priceInCents = pendingPaymentAmount * 100;
+      // If a coupon is applied, charge the discounted final amount
+      const effectiveAmount = appliedCoupon ? appliedCoupon.finalAmount : pendingPaymentAmount;
       const currencyCode = 'COP';
+      const selectedDbPlanForFlow = dbPlans.find(p => p.slug === selectedPlan.package);
+
+      // 100% coupon path: skip Wompi, activate plan via redeem-free endpoint
+      if (appliedCoupon && effectiveAmount === 0) {
+        try {
+          await api.payments.redeemFreeCoupon({
+            couponCode: appliedCoupon.code,
+            planName: pendingPlanName,
+            idPlan: selectedDbPlanForFlow?.id || null,
+            aiResponsesIncluded: selectedDbPlanForFlow?.messages || 250,
+            type: pendingTransactionType,
+            currency: currencyCode,
+            planPriceAmount: pendingPaymentAmount,
+            reference,
+          });
+          toast({
+            title: "¡Plan activado!",
+            description: `Tu plan ${pendingPlanName} se activó gratis con el cupón ${appliedCoupon.code}.`,
+          });
+          const txData = await api.transactions.list();
+          setTransactions((txData as Transaction[]) || []);
+          const freshProfile = await api.profile.get();
+          setProfile(freshProfile as Profile);
+          setRenewModal(false);
+          setWantUpgrade(false);
+          setRenewLoading(false);
+          return;
+        } catch (err: any) {
+          toast({
+            title: "No se pudo activar el cupón",
+            description: err?.message || "Intenta de nuevo o usa otro método.",
+            variant: "destructive",
+          });
+          setRenewLoading(false);
+          return;
+        }
+      }
+
+      const priceInCents = Math.round(effectiveAmount * 100);
 
       // Get Wompi signature
       const signatureData = await api.payments.wompiSignature({
@@ -975,19 +1143,30 @@ const Dashboard = () => {
         currency: currencyCode
       });
 
-      // Create pending transaction in DB
+      // Create pending transaction in DB (backend validates + applies coupon)
       const selectedDbPlan = dbPlans.find(p => p.slug === selectedPlan.package);
       const aiResponses = selectedDbPlan?.messages || 250;
       const idPlan = selectedDbPlan?.id || null;
-      await api.transactions.createPending({
-        reference,
-        plan_name: pendingPlanName,
-        ai_responses_included: aiResponses,
-        amount: pendingPaymentAmount,
-        currency: currencyCode,
-        type: pendingTransactionType,
-        id_plan: idPlan,
-      });
+      try {
+        await api.transactions.createPending({
+          reference,
+          plan_name: pendingPlanName,
+          ai_responses_included: aiResponses,
+          amount: pendingPaymentAmount, // send the ORIGINAL amount; backend computes discount
+          currency: currencyCode,
+          type: pendingTransactionType,
+          id_plan: idPlan,
+          coupon_code: appliedCoupon?.code,
+        });
+      } catch (txError: any) {
+        if (appliedCoupon) {
+          const msg = txError?.message || "El cupón ya no es válido. Intenta de nuevo sin cupón.";
+          toast({ title: "No se pudo aplicar el cupón", description: msg, variant: "destructive" });
+          setRenewLoading(false);
+          return;
+        }
+        throw txError;
+      }
 
       // Save pending payment info in localStorage (for redirect recovery)
       localStorage.setItem('pendingWompiPayment', JSON.stringify({
@@ -995,7 +1174,7 @@ const Dashboard = () => {
         plan_name: pendingPlanName,
         ai_responses_included: aiResponses,
         id_plan: idPlan,
-        amount: pendingPaymentAmount,
+        amount: effectiveAmount,
         currency: currencyCode,
         email: profile.user.email,
       }));
@@ -1348,11 +1527,12 @@ const Dashboard = () => {
           </Dialog>
 
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5 max-w-2xl">
+            <TabsList className="grid w-full grid-cols-6 max-w-3xl">
               <TabsTrigger value="overview">{t('dash.overview')}</TabsTrigger>
               <TabsTrigger value="payments">{t('dash.payments')}</TabsTrigger>
               <TabsTrigger value="invoices">{t('dash.invoices')}</TabsTrigger>
               <TabsTrigger value="profile">{t('dash.profile')}</TabsTrigger>
+              <TabsTrigger value="coupons">Cupones</TabsTrigger>
               <TabsTrigger value="support">{t('dash.support')}</TabsTrigger>
             </TabsList>
 
@@ -1599,6 +1779,55 @@ const Dashboard = () => {
                                   </div>
                                 )}
 
+                                {/* Coupon section (only applies to Wompi / COP) */}
+                                {paymentMethod === 'wompi' ? (
+                                  <div className="border border-border rounded-lg p-3 space-y-2">
+                                    <Label className="flex items-center gap-2 text-sm">
+                                      <Tag className="w-4 h-4 text-primary" />
+                                      ¿Tienes un código de cupón?
+                                    </Label>
+                                    {appliedCoupon ? (
+                                      <>
+                                        <div className="flex items-center justify-between bg-primary/10 border border-primary/30 rounded-md px-3 py-2">
+                                          <div>
+                                            <div className="font-mono text-sm font-semibold">{appliedCoupon.code}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                              Descuento: -${appliedCoupon.discountAmount.toLocaleString("es-CO")} COP
+                                            </div>
+                                          </div>
+                                          <Button size="sm" variant="ghost" onClick={removeAppliedCoupon} className="text-destructive hover:text-destructive">
+                                            Quitar
+                                          </Button>
+                                        </div>
+                                        <div className="flex justify-between items-center pt-1 text-sm">
+                                          <span className="font-medium">Total a pagar en COP:</span>
+                                          <span className="text-lg font-bold text-primary">
+                                            ${appliedCoupon.finalAmount.toLocaleString("es-CO")} COP
+                                          </span>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="flex gap-2">
+                                        <Input
+                                          placeholder="Ingresa tu código"
+                                          value={couponInput}
+                                          onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleApplyCouponRenew(); } }}
+                                          className="uppercase"
+                                          disabled={validatingCoupon}
+                                        />
+                                        <Button
+                                          onClick={handleApplyCouponRenew}
+                                          disabled={!couponInput.trim() || validatingCoupon}
+                                          variant="outline"
+                                        >
+                                          {validatingCoupon ? "..." : "Aplicar"}
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : null}
+
                                 {/* Payment method selector */}
                                 <div>
                                   <Label>Método de pago</Label>
@@ -1773,6 +2002,62 @@ const Dashboard = () => {
                 </div>
               )}
 
+              {/* Subscription Status Widget */}
+              {subscriptionStatus && subscriptionStatus.totalPayments > 0 && subscriptionStatus.paidThrough && (
+                <div className="glass-card p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <CheckCircle className="w-6 h-6 text-primary" />
+                    <h3 className="text-xl font-semibold">Estado de tu suscripción</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-secondary/40 border border-border rounded-lg p-4">
+                      <div className="text-sm text-muted-foreground mb-1">Plan pago hasta</div>
+                      <div className="text-lg font-bold text-primary">
+                        {format(subscriptionStatus.paidThrough, "dd MMM yyyy", { locale: dateLocale })}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {subscriptionStatus.status === "paid" && `${subscriptionStatus.daysLeft} días restantes`}
+                        {subscriptionStatus.status === "expiring" && `Vence en ${subscriptionStatus.daysLeft} días`}
+                        {subscriptionStatus.status === "overdue" && `Vencido hace ${Math.abs(subscriptionStatus.daysLeft)} días`}
+                      </div>
+                    </div>
+
+                    <div className="bg-secondary/40 border border-border rounded-lg p-4">
+                      <div className="text-sm text-muted-foreground mb-1">Meses pagados</div>
+                      <div className="text-lg font-bold">{subscriptionStatus.totalPayments}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Desde {format(subscriptionStatus.entryDate, "dd MMM yyyy", { locale: dateLocale })}
+                      </div>
+                    </div>
+
+                    <div className="bg-secondary/40 border border-border rounded-lg p-4">
+                      <div className="text-sm text-muted-foreground mb-1">Estado</div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          subscriptionStatus.status === "paid" ? "bg-green-500/20 text-green-400" :
+                          subscriptionStatus.status === "expiring" ? "bg-yellow-500/20 text-yellow-400" :
+                          subscriptionStatus.status === "overdue" ? "bg-red-500/20 text-red-400" :
+                          "bg-gray-500/20 text-gray-400"
+                        }`}>
+                          {subscriptionStatus.status === "paid" && "Al día"}
+                          {subscriptionStatus.status === "expiring" && "Por vencer"}
+                          {subscriptionStatus.status === "overdue" && "En mora"}
+                          {subscriptionStatus.status === "inactive" && "Sin pagos"}
+                        </span>
+                      </div>
+                      {subscriptionStatus.lastCouponTx && (
+                        <div className="text-xs text-muted-foreground mt-2">
+                          Último pago con cupón <span className="font-mono">{subscriptionStatus.lastCouponTx.coupon_code || `#${subscriptionStatus.lastCouponTx.id_coupon}`}</span>
+                          {subscriptionStatus.lastCouponTx.discount_amount && (
+                            <> (-${Number(subscriptionStatus.lastCouponTx.discount_amount).toLocaleString("es-CO")} {subscriptionStatus.lastCouponTx.currency})</>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Monthly Payment Record */}
               <div className="glass-card p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -1808,36 +2093,42 @@ const Dashboard = () => {
                   {t('dash.clickMonthDetail')}
                 </p>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                  {monthlyPayments.map((month, idx) => (
-                    <button 
-                      key={idx} 
-                      onClick={() => handleMonthClick(month.month, month.year)}
-                      className={`p-3 rounded-lg text-center transition-all hover:scale-105 cursor-pointer ${
-                        month.hasPayment 
-                          ? "bg-green-500/20 border border-green-500/30 hover:bg-green-500/30" 
-                          : "bg-red-500/20 border border-red-500/30 hover:bg-red-500/30"
-                      }`}
-                    >
-                      <div className="text-sm font-medium capitalize">
-                        {format(month.date, "MMM", { locale: dateLocale })}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(month.date, "yyyy")}
-                      </div>
-                      <div className="mt-1 flex items-center justify-center gap-1">
-                        {month.hasPayment ? (
-                          <CheckCircle className="w-5 h-5 text-green-400" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-400" />
-                        )}
-                      </div>
-                      {month.transactionCount > 0 && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {month.approvedCount}/{month.transactionCount}
+                  {monthlyPayments.map((month, idx) => {
+                    const isOk = month.hasPayment || month.isCovered;
+                    const isPrepaid = month.isCovered && !month.hasPayment;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => handleMonthClick(month.month, month.year)}
+                        className={`p-3 rounded-lg text-center transition-all hover:scale-105 cursor-pointer ${
+                          isOk
+                            ? "bg-green-500/20 border border-green-500/30 hover:bg-green-500/30"
+                            : "bg-red-500/20 border border-red-500/30 hover:bg-red-500/30"
+                        }`}
+                      >
+                        <div className="text-sm font-medium capitalize">
+                          {format(month.date, "MMM", { locale: dateLocale })}
                         </div>
-                      )}
-                    </button>
-                  ))}
+                        <div className="text-xs text-muted-foreground">
+                          {format(month.date, "yyyy")}
+                        </div>
+                        <div className="mt-1 flex items-center justify-center gap-1">
+                          {isOk ? (
+                            <CheckCircle className="w-5 h-5 text-green-400" />
+                          ) : (
+                            <XCircle className="w-5 h-5 text-red-400" />
+                          )}
+                        </div>
+                        {isPrepaid ? (
+                          <div className="text-xs text-green-400 mt-1">Cubierto</div>
+                        ) : month.transactionCount > 0 ? (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {month.approvedCount}/{month.transactionCount}
+                          </div>
+                        ) : null}
+                      </button>
+                    );
+                  })}
                 </div>
                   </>
                 )}
@@ -2310,11 +2601,16 @@ const Dashboard = () => {
               </div>
             </TabsContent>
 
+            {/* Coupons Tab */}
+            <TabsContent value="coupons">
+              <MyCouponsTab />
+            </TabsContent>
+
             {/* Invoices Tab */}
             <TabsContent value="invoices">
-              <InvoicesTab 
-                transactions={transactions} 
-                t={t} 
+              <InvoicesTab
+                transactions={transactions}
+                t={t}
                 dateLocale={dateLocale}
                 formatPrice={formatPrice}
               />

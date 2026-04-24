@@ -199,6 +199,26 @@ export const api = {
     payCommissions: (data: any) => post('/conversia/admin/commissions/pay', data),
   },
 
+  // ==================== COUPONS ====================
+  coupons: {
+    // Admin
+    list: async () => convertKeysToSnake(await get('/coupons')),
+    getById: async (id: number) => convertKeysToSnake(await get(`/coupons/${id}`)),
+    create: (data: { idUserOwner: number; discountType?: 'fixed' | 'percent'; discountValue: number; discountCurrency: 'COP' | 'USD'; expiresAt?: string | null; maxUses?: number | null }) =>
+      post('/coupons', data),
+    update: (id: number, data: any) => patch(`/coupons/${id}`, data),
+    remove: (id: number) => del(`/coupons/${id}`),
+    // Owner
+    mine: async () => convertKeysToSnake(await get('/coupons/mine/list')),
+    mineUsages: async (id: number) => convertKeysToSnake(await get(`/coupons/mine/${id}/usages`)),
+    // Validate (authenticated)
+    validate: (code: string, planPriceAmount: number, planPriceCurrency: 'COP' | 'USD') =>
+      post('/coupons/validate', { code, planPriceAmount, planPriceCurrency }),
+    // Validate (guest checkout via document)
+    validatePublic: (document: string, code: string, planPriceAmount: number, planPriceCurrency: 'COP' | 'USD') =>
+      post('/coupons/validate-public', { document, code, planPriceAmount, planPriceCurrency }),
+  },
+
   // ==================== PAYMENT FUNCTIONS (migrated from Supabase Edge Functions) ====================
   payments: {
     wompiSignature: (data: any) => post('/conversia/payments/wompi-signature', data),
@@ -211,5 +231,7 @@ export const api = {
     searchByDocument: (data: any) => post('/conversia/payments/search-by-document', data),
     siigoGetInvoicePdf: (data: any) => post('/conversia/payments/siigo-invoice-pdf', data),
     validateInvoiceData: () => post('/conversia/payments/validate-invoice-data', {}),
+    redeemFreeCoupon: (data: any) => post('/conversia/payments/redeem-free-coupon', data),
+    redeemFreeCouponPublic: (data: any) => post('/conversia/payments/redeem-free-coupon-public', data),
   },
 };
