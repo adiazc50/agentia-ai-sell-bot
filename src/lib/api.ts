@@ -204,7 +204,7 @@ export const api = {
     // Admin
     list: async () => convertKeysToSnake(await get('/coupons')),
     getById: async (id: number) => convertKeysToSnake(await get(`/coupons/${id}`)),
-    create: (data: { idUserOwner: number; discountType?: 'fixed' | 'percent'; discountValue: number; discountCurrency: 'COP' | 'USD'; expiresAt?: string | null; maxUses?: number | null }) =>
+    create: (data: { idUserOwner: number; code?: string; discountType?: 'fixed' | 'percent'; discountValue: number; discountCurrency: 'COP' | 'USD'; expiresAt?: string | null; maxUses?: number | null }) =>
       post('/coupons', data),
     update: (id: number, data: any) => patch(`/coupons/${id}`, data),
     remove: (id: number) => del(`/coupons/${id}`),

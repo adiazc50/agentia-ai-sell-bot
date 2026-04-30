@@ -117,6 +117,8 @@ const CouponsAdminTab = ({ profiles }: CouponsAdminTabProps) => {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     idUserOwner: "" as string | number,
+    codeMode: "auto" as "auto" | "manual",
+    code: "",
     discountType: "fixed" as "fixed" | "percent",
     discountValue: "" as string | number,
     discountCurrency: "COP" as "COP" | "USD",
@@ -171,6 +173,8 @@ const CouponsAdminTab = ({ profiles }: CouponsAdminTabProps) => {
     setEditing(null);
     setForm({
       idUserOwner: "",
+      codeMode: "auto",
+      code: "",
       discountType: "fixed",
       discountValue: "",
       discountCurrency: "COP",
@@ -185,6 +189,8 @@ const CouponsAdminTab = ({ profiles }: CouponsAdminTabProps) => {
     setEditing(c);
     setForm({
       idUserOwner: c.id_user_owner,
+      codeMode: "auto",
+      code: c.code,
       discountType: c.discount_type || "fixed",
       discountValue: c.discount_value,
       discountCurrency: c.discount_currency,
@@ -209,6 +215,21 @@ const CouponsAdminTab = ({ profiles }: CouponsAdminTabProps) => {
     if (form.discountType === "percent" && discountValue > 100) {
       toast({ title: "Porcentaje inválido", description: "El porcentaje no puede ser mayor a 100.", variant: "destructive" });
       return;
+    }
+
+    let manualCode: string | undefined;
+    if (!editing && form.codeMode === "manual") {
+      manualCode = form.code.trim().toUpperCase();
+      const validShape = /^[A-Z0-9](?:[A-Z0-9-]{2,18}[A-Z0-9])?$/.test(manualCode);
+      const noDoubleDash = !/--/.test(manualCode);
+      if (!validShape || !noDoubleDash) {
+        toast({
+          title: "Código inválido",
+          description: "4-20 caracteres, solo A-Z, 0-9 y guiones (no al inicio/fin ni dobles).",
+          variant: "destructive",
+        });
+        return;
+      }
     }
     const hasExpiry = !!form.expiresAt;
     const hasMaxUses = !!form.maxUses && Number(form.maxUses) > 0;
@@ -236,6 +257,7 @@ const CouponsAdminTab = ({ profiles }: CouponsAdminTabProps) => {
       } else {
         await api.coupons.create({
           idUserOwner: Number(form.idUserOwner),
+          ...(manualCode ? { code: manualCode } : {}),
           discountType: form.discountType,
           discountValue,
           discountCurrency: form.discountType === "percent" ? "COP" : form.discountCurrency,
@@ -480,6 +502,40 @@ const CouponsAdminTab = ({ profiles }: CouponsAdminTabProps) => {
                     </Command>
                   </PopoverContent>
                 </Popover>
+              </div>
+            )}
+
+            {!editing && (
+              <div>
+                <Label>Código del cupón</Label>
+                <Select
+                  value={form.codeMode}
+                  onValueChange={(v: "auto" | "manual") => setForm((f) => ({ ...f, codeMode: v, code: v === "auto" ? "" : f.code }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Autogenerar</SelectItem>
+                    <SelectItem value="manual">Personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
+                {form.codeMode === "manual" && (
+                  <div className="mt-2">
+                    <Input
+                      placeholder="Ej: AGENTIA-IA-GRATIS"
+                      value={form.code}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, code: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "") }))
+                      }
+                      maxLength={20}
+                      className="uppercase font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      4-20 caracteres. Letras (A-Z), números (0-9) y guiones. No al inicio/fin ni dobles.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
